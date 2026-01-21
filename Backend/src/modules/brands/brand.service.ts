@@ -152,6 +152,7 @@ export async function searchBrandsWithRatings(query: string) {
       isVerified: brand.isVerified,
       averageRating: totalRatings > 0 ? totalStars / totalRatings : 0,
       totalRatings,
+      complaintCount: brand.complaints.length,
     };
   });
 }

@@ -13,6 +13,7 @@ import axios from "axios";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import UserHeader from "../../../../components/dashboard/UserHeader";
+import BrandAutocomplete from "../../../../components/BrandAutocomplete";
 
 const complaintSchema = z.object({
   brand: z.string().min(1, "Brand is required"),
@@ -163,9 +164,9 @@ export default function CreateComplaint() {
       <div className="max-w-2xl mx-auto py-10 px-6">
         <div className="card-base bg-card p-6 md:p-10 shadow-lg border-border rounded-4xl">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <InputField
+            <BrandAutocomplete
               label="Brand Name"
-              {...register("brand")}
+              onSelect={(name: string) => setValue("brand", name)}
               placeholder="Enter the brand name"
               error={errors.brand?.message}
             />
