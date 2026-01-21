@@ -324,3 +324,6 @@
 {"duration":2,"ip":"::1","level":"info","message":"OPTIONS /subscriptions/current 204 - 2ms","method":"OPTIONS","service":"trustlens-api","status":204,"timestamp":"2026-01-21 08:15:35","url":"/subscriptions/current"}
 {"level":"info","message":"[Auth] User authenticated: 57bbbb75-05c7-4f69-9aad-7a961b3cc798","service":"trustlens-api","timestamp":"2026-01-21 08:15:35"}
 {"duration":3,"ip":"::1","level":"info","message":"GET /subscriptions/current 304 - 3ms","method":"GET","service":"trustlens-api","status":304,"timestamp":"2026-01-21 08:15:35","url":"/subscriptions/current"}
+{"duration":1,"ip":"::1","level":"info","message":"OPTIONS /subscriptions/current 204 - 1ms","method":"OPTIONS","service":"trustlens-api","status":204,"timestamp":"2026-01-21 08:16:22","url":"/subscriptions/current"}
+{"level":"info","message":"[Auth] User authenticated: 57bbbb75-05c7-4f69-9aad-7a961b3cc798","service":"trustlens-api","timestamp":"2026-01-21 08:16:22"}
+{"duration":6,"ip":"::1","level":"info","message":"GET /subscriptions/current 304 - 6ms","method":"GET","service":"trustlens-api","status":304,"timestamp":"2026-01-21 08:16:22","url":"/subscriptions/current"}
