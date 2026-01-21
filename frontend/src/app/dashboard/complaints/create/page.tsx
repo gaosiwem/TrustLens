@@ -1,0 +1,211 @@
+"use client";
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useRouter } from "next/navigation";
+import FileUpload from "../../../../components/FileUpload";
+import ComplaintPreview from "../../../../components/ComplaintPreview";
+import FlaggedComplaintModal from "../../../../components/FlaggedComplaintModal";
+import { Button } from "../../../../components/ui/button";
+import InputField from "../../../../components/InputField";
+import axios from "axios";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import UserHeader from "../../../../components/dashboard/UserHeader";
+
+const complaintSchema = z.object({
+  brand: z.string().min(1, "Brand is required"),
+  issue: z
+    .string()
+    .min(10, "Please describe the issue in at least 10 characters"),
+  files: z.any().optional(),
+});
+
+type ComplaintFormData = z.infer<typeof complaintSchema>;
+
+export default function CreateComplaint() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/login?callbackUrl=/dashboard/complaints/create");
+    }
+    if (session && (session.user as any)?.role === "BRAND") {
+      router.push("/dashboard");
+    }
+  }, [session, status, router]);
+
+  const [showPreview, setShowPreview] = useState(false);
+  const [showFlagModal, setShowFlagModal] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<ComplaintFormData>({
+    resolver: zodResolver(complaintSchema),
+  });
+
+  if (status === "loading") {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const onSubmit = async (data: ComplaintFormData) => {
+    // Simulate AI flagging for certain keywords
+    const flaggedKeywords = ["scam", "fraud", "illegal", "fake"];
+    const isFlagged = flaggedKeywords.some((keyword) =>
+      data.issue.toLowerCase().includes(keyword),
+    );
+
+    if (isFlagged) {
+      setShowFlagModal(true);
+      return;
+    }
+
+    // Show preview
+    const simulatedCorrection = data.issue
+      .replace(/complainst/gi, "complaints")
+      .replace(/isue/gi, "issue")
+      .replace(/recieve/gi, "receive");
+
+    setPreviewData({
+      brand: data.brand,
+      issue: data.issue,
+      files: data.files || [],
+      aiSummary: `AI Enhanced Summary: This complaint against ${data.brand} outlines an issue regarding ${simulatedCorrection}. Our AI analysis identifies this as a potential consumer rights concern that requires brand attention. (Note: AI has corrected spelling and grammatical clarity).`,
+      status: "SUBMITTED",
+    });
+    setShowPreview(true);
+  };
+
+  const handleFinalSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      if (!session?.accessToken) {
+        toast.error("You must be logged in to submit a complaint.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("brandName", previewData.brand);
+      const generatedTitle =
+        previewData.issue.length > 50
+          ? previewData.issue.substring(0, 50) + "..."
+          : previewData.issue;
+      formData.append("title", generatedTitle);
+      formData.append("description", previewData.issue);
+
+      if (previewData.files && previewData.files.length > 0) {
+        for (let i = 0; i < previewData.files.length; i++) {
+          formData.append("attachments", previewData.files[i]);
+        }
+      }
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+
+      await axios.post(`${apiUrl}/complaints`, formData, {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      });
+
+      toast.success("Complaint submitted successfully!");
+      router.push("/dashboard");
+    } catch (error: any) {
+      console.error("Submission error:", error);
+      toast.error(
+        "Failed to submit complaint: " +
+          (error.response?.data?.error || error.message),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (showPreview && previewData) {
+    return (
+      <>
+        <UserHeader
+          title="Review Complaint"
+          subtitle="Finalize your submission details"
+        />
+        <div className="max-w-3xl mx-auto py-10 px-6 space-y-6">
+          <ComplaintPreview complaint={previewData} />
+          <div className="flex gap-4 justify-end">
+            <Button variant="outline" onClick={() => setShowPreview(false)}>
+              Edit Complaint
+            </Button>
+            <Button onClick={handleFinalSubmit} disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit Complaint"}
+            </Button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <UserHeader
+        title="File a Complaint"
+        subtitle="Our AI will help you professionalize your issue"
+      />
+      <div className="max-w-2xl mx-auto py-10 px-6">
+        <div className="card-base bg-card p-6 md:p-10 shadow-lg border-border rounded-4xl">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <InputField
+              label="Brand Name"
+              {...register("brand")}
+              placeholder="Enter the brand name"
+              error={errors.brand?.message}
+            />
+
+            <div className="space-y-2">
+              <InputField
+                label="Issue / Complaint"
+                multiline
+                {...register("issue")}
+                placeholder="Describe the issue in detail..."
+                error={errors.issue?.message}
+                className="min-h-[200px]"
+              />
+              <p className="text-xs text-muted-foreground italic">
+                Tip: Include specific details like dates and order numbers.
+              </p>
+            </div>
+
+            <FileUpload
+              multiple={true}
+              onChange={(files) => setValue("files", files)}
+            />
+
+            <div className="pt-4">
+              <Button
+                type="submit"
+                className="w-full py-6 text-lg font-black italic shadow-lg shadow-primary/20"
+              >
+                Preview Complaint
+              </Button>
+            </div>
+          </form>
+        </div>
+
+        <FlaggedComplaintModal
+          isOpen={showFlagModal}
+          onClose={() => setShowFlagModal(false)}
+          reason="Your complaint contains keywords that require manual review. This is a security measure to prevent abuse."
+        />
+      </div>
+    </>
+  );
+}

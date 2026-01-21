@@ -1,0 +1,328 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+@import "tailwindcss";
+
+/* ===========================================
+   TrustLens Design System - Global Styles
+   Based on DESIGN_SYSTEM.md v1.0
+   =========================================== */
+
+/* ===========================================
+   Design Tokens - CSS Custom Properties
+   =========================================== */
+
+:root {
+  /* Primary Brand Color */
+  --primary: #13b6ec;
+  --primary-foreground: #ffffff;
+  
+  /* Background Colors - Light Mode */
+  --background: #f6f8f8;
+  --foreground: #111618;
+  
+  /* Surface Colors - Light Mode */
+  --card: #ffffff;
+  --card-foreground: #111618;
+  
+  /* Text Colors - Light Mode */
+  --muted: #e6e8e9;
+  --muted-foreground: #637588;
+  --placeholder: #93a2b7;
+  
+  /* Border Colors - Light Mode */
+  --border: #dce0e5;
+  
+  /* Semantic Colors */
+  --success: #34A853;
+  --warning: #FBBC05;
+  --error: #EA4335;
+  --info: #4285F4;
+  
+  /* Shadows */
+  --shadow-primary: rgba(19, 182, 236, 0.25);
+  
+  /* Border Radius */
+  --radius: 0.75rem;
+  --radius-sm: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+}
+
+/* Dark Mode */
+.dark, [data-theme="dark"] {
+  --background: #101d22;
+  --foreground: #ffffff;
+  
+  --card: #1a2c34;
+  --card-foreground: #ffffff;
+  
+  --muted: #2c3e46;
+  --muted-foreground: #93a2b7;
+  
+  --border: #2c3e46;
+}
+
+/* Media query fallback for system preference */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: #101d22;
+    --foreground: #ffffff;
+    --card: #1a2c34;
+    --card-foreground: #ffffff;
+    --muted: #2c3e46;
+    --muted-foreground: #93a2b7;
+    --border: #2c3e46;
+  }
+}
+
+/* ===========================================
+   Tailwind Theme Integration
+   =========================================== */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+  
+  --font-sans: 'Manrope', var(--font-geist-sans), sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+}
+
+/* ===========================================
+   Base Styles
+   =========================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Manrope', sans-serif;
+  font-weight: 400;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, 
+[role="button"],
+.btn-base {
+  cursor: pointer;
+}
+
+.variation-fill {
+  font-variation-settings: 'FILL' 1;
+}
+
+/* ===========================================
+   Typography Utilities
+   =========================================== */
+
+/* Headings */
+.heading-1 {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.heading-2 {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.heading-3 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* Text sizes */
+.text-body {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.text-small {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.text-caption {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.text-micro {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+/* ===========================================
+   Component Base Styles
+   =========================================== */
+
+/* Standard input height */
+.input-base {
+  height: 48px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 16px;
+  padding-right: 16px;
+  color: var(--foreground);
+  transition: all 0.2s ease;
+}
+
+.input-base:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(19, 182, 236, 0.1);
+}
+
+.input-base:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.input-base::placeholder {
+  color: var(--placeholder);
+}
+
+/* Standard button height */
+.btn-base {
+  height: 48px;
+  padding-left: 24px;
+  padding-right: 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-base:active {
+  transform: scale(0.98);
+}
+
+/* Primary button */
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 10px 15px -3px var(--shadow-primary);
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+/* Secondary button */
+.btn-secondary {
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--muted);
+}
+
+/* Card styles */
+.card-base {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.card-base:hover {
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* Badge/Pill styles */
+.badge-base {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+/* ===========================================
+   Utility Classes
+   =========================================== */
+
+/* Hide scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Glassmorphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass {
+  background: rgba(26, 44, 52, 0.8);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(to right, var(--foreground), var(--muted-foreground));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Primary gradient background */
+.gradient-primary {
+  background: linear-gradient(135deg, var(--primary), #0891b2);
+}
+
+/* ===========================================
+   Focus & Accessibility
+   =========================================== */
+
+/* *:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+} */
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

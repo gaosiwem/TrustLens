@@ -1,0 +1,56 @@
+export const mockComplaints = [
+  {
+    id: "1",
+    brand: "Brand A",
+    brandName: "Brand A",
+    status: "PENDING",
+    description: "Package arrived late and was damaged",
+    attachments: ["invoice1.pdf", "photo1.jpg"],
+    createdAt: "2026-01-09",
+    aiSummary: null,
+    rating: null,
+  },
+  {
+    id: "2",
+    brand: "Brand B",
+    brandName: "Brand B",
+    status: "REWRITTEN",
+    description: "Customer service was rude and unhelpful",
+    attachments: ["photo2.jpg"],
+    createdAt: "2026-01-08",
+    aiSummary: "Professional rephrasing of service complaint",
+    rating: null,
+  },
+  {
+    id: "3",
+    brand: "Brand C",
+    brandName: "Brand C",
+    status: "RESOLVED",
+    description: "Wrong item sent, needed replacement",
+    attachments: [],
+    createdAt: "2026-01-07",
+    aiSummary: "Issue resolved with replacement",
+    rating: 4,
+  },
+  {
+    id: "4",
+    brand: "Brand D",
+    brandName: "Brand D",
+    status: "PENDING",
+    description: "Product quality below expectations",
+    attachments: ["receipt.pdf"],
+    createdAt: "2026-01-06",
+    aiSummary: null,
+    rating: null,
+  },
+];
+
+export const mockMetrics = {
+  resolutionRate: 0.82,
+  complaintsByStatus: {
+    Pending: 12,
+    Resolved: 34,
+    Rewritten: 5,
+  },
+  trustScore: 4.5,
+};
