@@ -1,0 +1,408 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                     String                  @id @default(uuid())
+  email                  String                  @unique
+  name                   String?
+  password               String?
+  role                   UserRole                @default(USER)
+  createdAt              DateTime                @default(now())
+  managedBrands          Brand[]                 @relation("BrandManager")
+  complaints             Complaint[]
+  followups              Followup[]
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
+  ratings                Rating[]
+  verificationRequests   VerifiedRequest[]
+  verifiedSubscriptions  VerifiedSubscription[]
+}
+
+model Brand {
+  id           String           @id @default(uuid())
+  name         String           @unique
+  isVerified   Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  logoUrl      String?
+  managerId    String?
+  description  String?
+  searchTags   String[]         @default([])
+  supportEmail String?
+  supportPhone String?
+  websiteUrl   String?
+  manager      User?            @relation("BrandManager", fields: [managerId], references: [id])
+  complaints   Complaint[]
+  reputation   ReputationScore?
+  subscription BrandSubscription?
+  billingProfile BrandBillingProfile?
+  invoices       Invoice[]
+  verificationRequests VerifiedRequest[]
+}
+
+model SubscriptionPlan {
+  id           String              @id @default(uuid())
+  code         String              @unique
+  name         String
+  monthlyPrice Int
+  features     Json
+  createdAt    DateTime            @default(now())
+  subscriptions BrandSubscription[]
+}
+
+model BrandSubscription {
+  id         String             @id @default(uuid())
+  brandId    String             @unique
+  planId     String
+  status     SubscriptionStatus
+  startedAt  DateTime
+  endsAt     DateTime?
+  gatewayRef String?
+  createdAt  DateTime           @default(now())
+
+  brand Brand            @relation(fields: [brandId], references: [id])
+  plan  SubscriptionPlan @relation(fields: [planId], references: [id])
+  transactions PaymentTransaction[]
+}
+
+model PaymentTransaction {
+  id             String            @id @default(uuid())
+  brandId        String
+  subscriptionId String
+  amount         Int
+  currency       String
+  gateway        String
+  gatewayRef     String
+  status         String
+  createdAt      DateTime          @default(now())
+  subscription   BrandSubscription @relation(fields: [subscriptionId], references: [id])
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+model BrandBillingProfile {
+  id             String   @id @default(uuid())
+  brandId        String   @unique
+  legalName      String
+  registrationNo String?
+  vatNumber      String?
+  billingEmail   String
+  addressLine1   String
+  addressLine2   String?
+  city           String
+  province       String
+  postalCode     String
+  country        String   @default("South Africa")
+  createdAt      DateTime @default(now())
+  brand          Brand    @relation(fields: [brandId], references: [id])
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  invoiceNumber  String        @unique
+  brandId        String
+  subscriptionId String
+  subtotal       Int
+  vatAmount      Int
+  total          Int
+  currency       String        @default("ZAR")
+  status         InvoiceStatus
+  issuedAt       DateTime
+  paidAt         DateTime?
+  brand          Brand         @relation(fields: [brandId], references: [id])
+}
+
+enum InvoiceStatus {
+  ISSUED
+  PAID
+  VOID
+}
+
+model VerifiedRequest {
+  id            String             @id @default(uuid())
+  brandId       String
+  userId        String
+  companyName   String
+  documents     Json               // List of files/metadata
+  status        VerificationStatus @default(PENDING)
+  adminComments String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  brand                Brand                  @relation(fields: [brandId], references: [id])
+  user                 User                   @relation(fields: [userId], references: [id])
+  verifiedSubscription VerifiedSubscription[]
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model VerifiedSubscription {
+  id                String            @id @default(uuid())
+  userId            String
+  verifiedRequestId String
+  status            VerifiedSubStatus @default(PENDING)
+  paymentGateway    String?
+  paymentReference  String?
+  amount            Decimal?          @db.Decimal(12, 2)
+  vat               Decimal?          @db.Decimal(5, 2)
+  startDate         DateTime?
+  endDate           DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user            User            @relation(fields: [userId], references: [id])
+  verifiedRequest VerifiedRequest @relation(fields: [verifiedRequestId], references: [id])
+}
+
+enum VerifiedSubStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model VerificationAuditLog {
+  id             String   @id @default(uuid())
+  verificationId String
+  brandId        String
+  adminId        String
+  action         String
+  reason         String?
+  createdAt      DateTime @default(now())
+}
+
+model AdminAuditLog {
+  id        String   @id @default(uuid())
+  adminId   String
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model Complaint {
+  id             String                   @id @default(uuid())
+  userId         String
+  brandId        String
+  title          String
+  description    String
+  status         ComplaintStatus          @default(DRAFT)
+  aiSummary      String?
+  sentimentScore Float?
+  verifiedTier   Int                      @default(3)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  attachments    Attachment[]
+  brand          Brand                    @relation(fields: [brandId], references: [id])
+  user           User                     @relation(fields: [userId], references: [id])
+  statusHistory  ComplaintStatusHistory[]
+  followups      Followup[]
+  ratings        Rating[]
+  escalationCase EscalationCase?
+}
+
+model ReputationScore {
+  id        String   @id @default(uuid())
+  brandId   String   @unique
+  score     Float
+  updatedAt DateTime @updatedAt
+  brand     Brand    @relation(fields: [brandId], references: [id])
+}
+
+model ComplaintCluster {
+  id        String   @id @default(uuid())
+  brandId   String
+  keyword   String
+  count     Int
+  windowHr  Int
+  createdAt DateTime @default(now())
+}
+
+model Attachment {
+  id          String    @id @default(uuid())
+  complaintId String
+  fileName    String
+  mimeType    String
+  size        Int
+  createdAt   DateTime  @default(now())
+  complaint   Complaint @relation(fields: [complaintId], references: [id])
+}
+
+model ComplaintStatusHistory {
+  id          String          @id @default(uuid())
+  complaintId String
+  fromStatus  ComplaintStatus
+  toStatus    ComplaintStatus
+  changedBy   String
+  createdAt   DateTime        @default(now())
+  complaint   Complaint       @relation(fields: [complaintId], references: [id])
+}
+
+model MFA {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  secret    String
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  entity    String
+  entityId  String
+  action    String
+  actorId   String
+  metadata  Json
+  createdAt DateTime @default(now())
+}
+
+model Rating {
+  id          String    @id @default(uuid())
+  userId      String
+  complaintId String
+  stars       Int
+  comment     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  complaint   Complaint @relation(fields: [complaintId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, complaintId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  message   String
+  read      Boolean  @default(false)
+  priority  String   @default("info")
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model NotificationPreference {
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  emailEnabled Boolean @default(true)
+  pushEnabled  Boolean @default(true)
+  user         User    @relation(fields: [userId], references: [id])
+}
+
+model Followup {
+  id          String    @id @default(uuid())
+  complaintId String
+  userId      String
+  comment     String
+  createdAt   DateTime  @default(now())
+  complaint   Complaint @relation(fields: [complaintId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+  authenticityScore ResponderAuthenticityScore?
+}
+
+model BrandClaim {
+  id         String           @id @default(uuid())
+  userId     String
+  brandName  String
+  email      String
+  status     BrandClaimStatus @default(PENDING)
+  aiScore    Int?
+  documents  String[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  websiteUrl String?
+}
+
+enum ComplaintStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_INFO
+  INFO_PROVIDED
+  RESPONDED
+  RESOLVED
+  REJECTED
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+  BRAND
+  FINANCE
+  AUDITOR
+}
+
+enum BrandClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  INFO_REQUESTED
+}
+
+model ResponderAuthenticityScore {
+  id              String   @id @default(uuid())
+  responseId      String   @unique
+  businessUserId  String
+  identityScore   Float
+  behaviorScore   Float
+  languageScore   Float
+  reputationScore Float
+  compositeScore  Float
+  riskBand        String   // LOW | MEDIUM | HIGH
+  ruleBreakdown   Json
+  createdAt       DateTime @default(now())
+  
+  response        Followup @relation(fields: [responseId], references: [id])
+}
+
+model TrustScore {
+  id         String   @id @default(uuid())
+  entityType String   // "USER" | "BRAND"
+  entityId   String
+  score      Int      // 0-100
+  riskLevel  String   // LOW | MEDIUM | HIGH | CRITICAL
+  evaluatedAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model EnforcementAction {
+  id          String   @id @default(uuid())
+  entityType  String
+  entityId    String
+  actionType  String   // WARNING, RATE_LIMIT, REVIEW_REQUIRED, TEMP_RESTRICTION
+  reason      String
+  triggeredBy String   // AI_RULE_ID or ADMIN
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+}
+
+model EscalationCase {
+  id            String   @id @default(uuid())
+  complaintId   String   @unique
+  escalatedBy   String   // USER | SYSTEM | ADMIN
+  reason        String
+  aiRiskSummary String?
+  status        String   // PENDING | INVESTIGATING | RESOLVED | REFERRED
+  createdAt     DateTime @default(now())
+  
+  complaint     Complaint @relation(fields: [complaintId], references: [id])
+}

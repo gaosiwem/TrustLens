@@ -1,0 +1,326 @@
+import prisma from "../../prismaClient.js";
+import { resolveBrand } from "../brands/brand.service.js";
+import { assertTransition } from "./complaint.lifecycle.js";
+import { logAction as auditLog } from "../audit/audit.service.js";
+import { aiQueue } from "../../jobs/ai.processor.js";
+import { rewriteComplaint } from "../ai/ai.rewrite.service.js";
+import logger from "../../config/logger.js";
+
+export async function createComplaint(input: {
+  userId: string;
+  brandName: string;
+  title: string;
+  description: string;
+  attachments?: Express.Multer.File[];
+}) {
+  logger.info("[ComplaintService] Starting createComplaint...");
+  const brand = await resolveBrand(input.brandName);
+  if (!brand) {
+    throw new Error(`Brand "${input.brandName}" not found.`);
+  }
+  logger.info("[ComplaintService] Brand resolved: %s", (brand as any).id);
+
+  const user = await prisma.user.findUnique({
+    where: { id: input.userId },
+    select: { name: true, email: true },
+  });
+
+  const complaint = await prisma.complaint.create({
+    data: {
+      userId: input.userId,
+      brandId: (brand as any).id,
+      title: input.title,
+      description: input.description,
+      status: "SUBMITTED",
+    },
+  });
+  logger.info("[ComplaintService] Complaint record created: %s", complaint.id);
+
+  // Create attachment records
+  if (input.attachments && input.attachments.length > 0) {
+    logger.info(
+      "[ComplaintService] Processing %d attachments...",
+      input.attachments.length
+    );
+    await Promise.all(
+      input.attachments.map((file) =>
+        prisma.attachment.create({
+          data: {
+            complaintId: complaint.id,
+            fileName: file.filename,
+            mimeType: file.mimetype,
+            size: file.size,
+          },
+        })
+      )
+    );
+    logger.info("[ComplaintService] Attachments stored.");
+  }
+
+  // Trigger AI rewrite asynchronously
+  logger.info("[ComplaintService] Triggering AI tasks...");
+  rewriteComplaint(
+    input.brandName,
+    input.description,
+    user?.name || undefined,
+    user?.email
+  )
+    .then(async (aiSummary) => {
+      logger.info(
+        "[ComplaintService] AI summary received for: %s",
+        complaint.id
+      );
+      await prisma.complaint.update({
+        where: { id: complaint.id },
+        data: { aiSummary },
+      });
+      logger.info("[ComplaintService] AI summary updated in DB.");
+    })
+    .catch((err) => logger.error("[ComplaintService] AI rewrite error:", err));
+
+  // Trigger AI analysis queue (sentiment, etc.)
+  // We do NOT await this to prevent hanging the request if Redis is down
+  aiQueue.add("analyze", { id: complaint.id }).catch((err) => {
+    console.error("Failed to add to AI queue (Redis down?):", err.message);
+  });
+
+  console.log("[ComplaintService] Returning response.");
+  return complaint;
+}
+
+export async function changeComplaintStatus(params: {
+  complaintId: string;
+  actorId: string;
+  toStatus: any;
+}) {
+  const complaint = await prisma.complaint.findUniqueOrThrow({
+    where: { id: params.complaintId },
+  });
+
+  assertTransition(complaint.status, params.toStatus);
+
+  const [updatedComplaint] = await prisma.$transaction([
+    prisma.complaint.update({
+      where: { id: complaint.id },
+      data: { status: params.toStatus },
+    }),
+    prisma.complaintStatusHistory.create({
+      data: {
+        complaintId: complaint.id,
+        fromStatus: complaint.status,
+        toStatus: params.toStatus,
+        changedBy: params.actorId,
+      },
+    }),
+  ]);
+
+  await auditLog({
+    entity: "Complaint",
+    entityId: complaint.id,
+    action: "STATUS_CHANGED",
+    userId: params.actorId,
+    metadata: {
+      from: complaint.status,
+      to: params.toStatus,
+    },
+  });
+
+  return updatedComplaint;
+}
+export async function listComplaints(params: {
+  cursor?: string | undefined;
+  limit: number;
+  status?: any | undefined;
+  brandId?: string | string[] | undefined;
+  userId?: string | undefined;
+}) {
+  const where: any = {};
+  if (params.status) where.status = params.status;
+  if (params.userId) where.userId = params.userId;
+  if (params.brandId) {
+    if (Array.isArray(params.brandId)) {
+      where.brandId = { in: params.brandId };
+    } else {
+      where.brandId = params.brandId;
+    }
+  }
+
+  const complaints = await prisma.complaint.findMany({
+    take: params.limit + 1,
+    ...(params.cursor && {
+      cursor: { id: params.cursor },
+      skip: 1,
+    }),
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      brand: {
+        include: {
+          subscription: true,
+        },
+      },
+      attachments: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          createdAt: true,
+          _count: {
+            select: { complaints: true },
+          },
+        },
+      },
+      ratings: true,
+      followups: {
+        include: {
+          user: {
+            select: { name: true, role: true },
+          },
+        },
+      },
+    },
+  });
+
+  const hasNextPage = complaints.length > params.limit;
+  const data = hasNextPage ? complaints.slice(0, -1) : complaints;
+
+  return {
+    data,
+    nextCursor: hasNextPage ? data[data.length - 1]?.id : null,
+  };
+}
+
+export async function searchComplaints(params: {
+  page: number;
+  limit: number;
+  status?: string;
+  brandName?: string;
+  query?: string;
+}) {
+  const { page, limit, status, brandName, query } = params;
+  const skip = (page - 1) * limit;
+
+  const where: any = {};
+
+  if (status) {
+    where.status = status;
+  }
+
+  if (brandName) {
+    where.brand = {
+      name: { contains: brandName, mode: "insensitive" },
+    };
+  }
+
+  if (query) {
+    where.OR = [
+      { title: { contains: query, mode: "insensitive" } },
+      { description: { contains: query, mode: "insensitive" } },
+      { aiSummary: { contains: query, mode: "insensitive" } },
+    ];
+  }
+
+  const [total, complaints] = await Promise.all([
+    prisma.complaint.count({ where }),
+    prisma.complaint.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        brand: {
+          include: {
+            subscription: true,
+          },
+        },
+        attachments: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            createdAt: true,
+            _count: {
+              select: { complaints: true },
+            },
+          },
+        },
+        ratings: true,
+        followups: {
+          include: {
+            user: {
+              select: { name: true, role: true },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    data: complaints,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+export async function addAttachment(params: {
+  complaintId: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+}) {
+  if (
+    !["image/png", "image/jpeg", "application/pdf"].includes(params.mimeType)
+  ) {
+    throw new Error("Unsupported file type");
+  }
+
+  if (params.size > 10 * 1024 * 1024) {
+    throw new Error("File too large");
+  }
+
+  return prisma.attachment.create({
+    data: {
+      complaintId: params.complaintId,
+      fileName: params.fileName,
+      mimeType: params.mimeType,
+      size: params.size,
+    },
+  });
+}
+
+export async function getComplaintById(id: string) {
+  return prisma.complaint.findUnique({
+    where: { id },
+    include: {
+      brand: {
+        include: {
+          subscription: true,
+        },
+      },
+      attachments: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          createdAt: true,
+          _count: {
+            select: { complaints: true },
+          },
+        },
+      },
+      ratings: true,
+      followups: {
+        include: {
+          user: {
+            select: { name: true, role: true },
+          },
+        },
+      },
+    },
+  });
+}
