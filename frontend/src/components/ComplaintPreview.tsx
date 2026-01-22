@@ -3,11 +3,13 @@
 import AISummaryCard from "./AISummaryCard";
 import VerificationStatus from "./VerificationStatus";
 import BrandLogo from "./BrandLogo";
+import { BadgeCheck } from "lucide-react";
 
 interface ComplaintPreviewProps {
   complaint: {
     brand: string;
-    brandLogoUrl?: string; // Added field
+    brandLogoUrl?: string;
+    isVerified?: boolean;
     issue: string;
     files: File[];
     aiSummary?: string;
@@ -38,7 +40,12 @@ export default function ComplaintPreview({ complaint }: ComplaintPreviewProps) {
               brandLogoUrl={complaint.brandLogoUrl}
               className="w-14 h-14 rounded-2xl object-contain bg-white border border-border shadow-sm"
             />
-            <p className="text-base font-medium">{complaint.brand}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-base font-medium">{complaint.brand}</p>
+              {complaint.isVerified && (
+                <BadgeCheck className="w-5 h-5 text-white fill-primary" />
+              )}
+            </div>
           </div>
         </div>
 

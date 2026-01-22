@@ -1,4 +1,4 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 export async function detectClusters(brandId: string, keyword: string) {
   const count = await prisma.complaint.count({

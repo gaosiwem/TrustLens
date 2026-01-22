@@ -161,16 +161,13 @@ export function ReviewCard({
                 <BadgeCheck className="w-4 h-4 text-white fill-primary ml-1" />
               )}
             </div>
-            {brandTrustScore !== undefined && (
+            {/* {brandTrustScore !== undefined && (
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[9px] font-black text-primary bg-primary/5 px-1.5 py-0.5 rounded">
-                  {brandTrustScore.toFixed(1)} ★ Trust
-                </span>
                 <span className="text-[9px] font-bold text-muted-foreground">
                   {brandTotalComplaints} Complaints
                 </span>
               </div>
-            )}
+            )} */}
           </div>
         </div>
 

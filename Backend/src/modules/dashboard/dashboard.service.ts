@@ -1,26 +1,71 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 export async function getDashboardMetrics(userId: string) {
-  // Get complaint counts by status
-  const totalComplaints = await prisma.complaint.count({
-    where: { userId },
-  });
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-  const resolved = await prisma.complaint.count({
-    where: { userId, status: "RESOLVED" },
-  });
+  // Helper to get count for a period
+  const getCount = async (whereClause: any, from?: Date, to?: Date) => {
+    const where = { ...whereClause };
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = from;
+      if (to) where.createdAt.lt = to;
+    }
+    return prisma.complaint.count({ where });
+  };
 
-  // Pending includes: DRAFT, SUBMITTED, UNDER_REVIEW, and RESPONDED (awaiting final resolution)
-  const pending = await prisma.complaint.count({
-    where: {
-      userId,
-      status: { in: ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "RESPONDED"] },
-    },
-  });
+  const calculateTrend = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 100);
+  };
 
-  const needsInfo = await prisma.complaint.count({
-    where: { userId, status: "NEEDS_INFO" },
-  });
+  const commonWhere = { userId };
+
+  // Total Complaints
+  const totalComplaints = await getCount(commonWhere);
+  const totalCurrent = await getCount(commonWhere, thirtyDaysAgo);
+  const totalPrevious = await getCount(
+    commonWhere,
+    sixtyDaysAgo,
+    thirtyDaysAgo,
+  );
+  const totalComplaintsTrend = calculateTrend(totalCurrent, totalPrevious);
+
+  // Resolved
+  const resolvedWhere = { ...commonWhere, status: "RESOLVED" };
+  const resolved = await getCount(resolvedWhere);
+  const resolvedCurrent = await getCount(resolvedWhere, thirtyDaysAgo);
+  const resolvedPrevious = await getCount(
+    resolvedWhere,
+    sixtyDaysAgo,
+    thirtyDaysAgo,
+  );
+  const resolvedTrend = calculateTrend(resolvedCurrent, resolvedPrevious);
+
+  // Pending
+  const pendingStatuses = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "RESPONDED"];
+  const pendingWhere = { ...commonWhere, status: { in: pendingStatuses } };
+  const pending = await getCount(pendingWhere);
+  const pendingCurrent = await getCount(pendingWhere, thirtyDaysAgo);
+  const pendingPrevious = await getCount(
+    pendingWhere,
+    sixtyDaysAgo,
+    thirtyDaysAgo,
+  );
+  const pendingTrend = calculateTrend(pendingCurrent, pendingPrevious);
+
+  // Needs Info
+  const needsInfoWhere = { ...commonWhere, status: "NEEDS_INFO" };
+  const needsInfo = await getCount(needsInfoWhere);
+  const needsInfoCurrent = await getCount(needsInfoWhere, thirtyDaysAgo);
+  const needsInfoPrevious = await getCount(
+    needsInfoWhere,
+    sixtyDaysAgo,
+    thirtyDaysAgo,
+  );
+  const needsInfoTrend = calculateTrend(needsInfoCurrent, needsInfoPrevious);
 
   const rejected = await prisma.complaint.count({
     where: { userId, status: "REJECTED" },
@@ -28,9 +73,13 @@ export async function getDashboardMetrics(userId: string) {
 
   return {
     totalComplaints,
+    totalComplaintsTrend,
     resolved,
+    resolvedTrend,
     pending,
+    pendingTrend,
     needsInfo,
+    needsInfoTrend,
     rejected,
   };
 }
@@ -78,7 +127,69 @@ export async function getStatusDistribution(userId: string) {
 }
 
 export async function getAIInsights(userId: string) {
-  // Get most common brand (top issue)
+  // Get all brands the user has complained about
+  const userComplaints = await prisma.complaint.findMany({
+    where: { userId },
+    select: { brandId: true },
+    distinct: ["brandId"],
+  });
+
+  const brandIds = userComplaints
+    .map((c) => c.brandId)
+    .filter((id): id is string => id !== null);
+
+  // Get performance for these brands
+  const brandPerformance = await Promise.all(
+    brandIds.map(async (brandId) => {
+      const brand = await prisma.brand.findUnique({
+        where: { id: brandId },
+        select: { name: true, logoUrl: true },
+      });
+
+      const totalBrandComplaints = await prisma.complaint.count({
+        where: { brandId },
+      });
+      const resolvedBrandComplaints = await prisma.complaint.count({
+        where: { brandId, status: "RESOLVED" },
+      });
+
+      const resolutionRate =
+        totalBrandComplaints > 0
+          ? Math.round((resolvedBrandComplaints / totalBrandComplaints) * 100)
+          : 0;
+
+      return {
+        brandName: brand?.name || "Unknown",
+        logoUrl: brand?.logoUrl,
+        resolutionRate,
+        totalComplaints: totalBrandComplaints,
+      };
+    }),
+  );
+
+  // Platform wide metrics
+  const totalPlatformComplaints = await prisma.complaint.count();
+  const resolvedPlatformComplaints = await prisma.complaint.count({
+    where: { status: "RESOLVED" },
+  });
+  const platformResolutionRate =
+    totalPlatformComplaints > 0
+      ? Math.round((resolvedPlatformComplaints / totalPlatformComplaints) * 100)
+      : 0;
+
+  // Personal metrics
+  const totalUserComplaints = await prisma.complaint.count({
+    where: { userId },
+  });
+  const resolvedUserComplaints = await prisma.complaint.count({
+    where: { userId, status: "RESOLVED" },
+  });
+  const userResolutionRate =
+    totalUserComplaints > 0
+      ? Math.round((resolvedUserComplaints / totalUserComplaints) * 100)
+      : 0;
+
+  // Top Issue (Common brand)
   const brandCounts = await prisma.complaint.groupBy({
     by: ["brandId"],
     where: { userId },
@@ -90,60 +201,98 @@ export async function getAIInsights(userId: string) {
   let topIssue = "No complaints yet";
   if (brandCounts.length > 0) {
     const topBrand = brandCounts[0]!;
-    const brandId = topBrand.brandId;
-    if (brandId) {
+    if (topBrand.brandId) {
       const brand = await prisma.brand.findUnique({
-        where: { id: brandId },
+        where: { id: topBrand.brandId },
       });
       if (brand) {
-        topIssue = `${topBrand._count.brandId} complaints about ${brand.name}`;
+        topIssue = `${topBrand._count.brandId} issues with ${brand.name}`;
       }
     }
   }
 
-  // Calculate resolution rate for suggestion
-  const total = await prisma.complaint.count({ where: { userId } });
-  const resolved = await prisma.complaint.count({
-    where: { userId, status: "RESOLVED" },
-  });
-
-  const resolutionRate = total > 0 ? Math.round((resolved / total) * 100) : 0;
   const resolutionSuggestion =
-    resolutionRate < 50
-      ? "Follow up on pending complaints to improve resolution rate"
-      : "Great job! Keep monitoring response times";
+    userResolutionRate < 50
+      ? "Focus on high-resolution brands like those in your top list for better results."
+      : "Excellent! Your resolution rate is above the platform average.";
 
   return {
     topIssue,
     resolutionSuggestion,
-    resolutionRate,
+    resolutionRate: userResolutionRate,
+    platformResolutionRate,
+    brandPerformance,
   };
 }
 
 // Brand-specific dashboard functions (for BRAND role users)
 export async function getBrandDashboardMetrics(brandIds: string | string[]) {
-  // Normalize to array for consistent handling
   const brandIdArray = Array.isArray(brandIds) ? brandIds : [brandIds];
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-  const totalComplaints = await prisma.complaint.count({
-    where: { brandId: { in: brandIdArray } },
-  });
+  // Helper to get count for a period
+  const getCount = async (whereClause: any, from?: Date, to?: Date) => {
+    const where = { ...whereClause };
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = from;
+      if (to) where.createdAt.lt = to;
+    }
+    return prisma.complaint.count({ where });
+  };
 
-  const resolved = await prisma.complaint.count({
-    where: { brandId: { in: brandIdArray }, status: "RESOLVED" },
-  });
+  const calculateTrend = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 100);
+  };
 
-  // Pending includes: DRAFT, SUBMITTED, UNDER_REVIEW, and RESPONDED (awaiting final resolution)
-  const pending = await prisma.complaint.count({
-    where: {
-      brandId: { in: brandIdArray },
-      status: { in: ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "RESPONDED"] },
-    },
-  });
+  const commonWhere = { brandId: { in: brandIdArray } };
 
-  const needsInfo = await prisma.complaint.count({
-    where: { brandId: { in: brandIdArray }, status: "NEEDS_INFO" },
-  });
+  // Total Complaints
+  const totalComplaints = await getCount(commonWhere);
+  const totalCurrent = await getCount(commonWhere, thirtyDaysAgo);
+  const totalPrevious = await getCount(
+    commonWhere,
+    sixtyDaysAgo,
+    thirtyDaysAgo,
+  );
+  const totalComplaintsTrend = calculateTrend(totalCurrent, totalPrevious);
+
+  // Resolved
+  const resolvedWhere = { ...commonWhere, status: "RESOLVED" };
+  const resolved = await getCount(resolvedWhere);
+  const resolvedCurrent = await getCount(resolvedWhere, thirtyDaysAgo);
+  const resolvedPrevious = await getCount(
+    resolvedWhere,
+    sixtyDaysAgo,
+    thirtyDaysAgo,
+  );
+  const resolvedTrend = calculateTrend(resolvedCurrent, resolvedPrevious);
+
+  // Pending
+  const pendingStatuses = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "RESPONDED"];
+  const pendingWhere = { ...commonWhere, status: { in: pendingStatuses } };
+  const pending = await getCount(pendingWhere);
+  const pendingCurrent = await getCount(pendingWhere, thirtyDaysAgo);
+  const pendingPrevious = await getCount(
+    pendingWhere,
+    sixtyDaysAgo,
+    thirtyDaysAgo,
+  );
+  const pendingTrend = calculateTrend(pendingCurrent, pendingPrevious);
+
+  // Needs Info
+  const needsInfoWhere = { ...commonWhere, status: "NEEDS_INFO" };
+  const needsInfo = await getCount(needsInfoWhere);
+  const needsInfoCurrent = await getCount(needsInfoWhere, thirtyDaysAgo);
+  const needsInfoPrevious = await getCount(
+    needsInfoWhere,
+    sixtyDaysAgo,
+    thirtyDaysAgo,
+  );
+  const needsInfoTrend = calculateTrend(needsInfoCurrent, needsInfoPrevious);
 
   const rejected = await prisma.complaint.count({
     where: { brandId: { in: brandIdArray }, status: "REJECTED" },
@@ -151,9 +300,13 @@ export async function getBrandDashboardMetrics(brandIds: string | string[]) {
 
   return {
     totalComplaints,
+    totalComplaintsTrend,
     resolved,
+    resolvedTrend,
     pending,
+    pendingTrend,
     needsInfo,
+    needsInfoTrend,
     rejected,
   };
 }
@@ -263,6 +416,11 @@ export async function getBrandComplaintList(params: {
       { title: { contains: search, mode: "insensitive" } },
       { description: { contains: search, mode: "insensitive" } },
       { aiSummary: { contains: search, mode: "insensitive" } },
+      {
+        user: {
+          name: { contains: search, mode: "insensitive" },
+        },
+      },
     ];
   }
 

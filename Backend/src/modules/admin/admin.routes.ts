@@ -10,7 +10,7 @@ import {
   authenticate,
   authenticateAdmin,
 } from "../../middleware/auth.middleware.js";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import { processBrandClaim } from "../brands/brand.service.js";
 import {
   getRevenueSummary,
@@ -28,25 +28,25 @@ router.get(
   "/trend/submissions",
   authenticate,
   authenticateAdmin,
-  submissionTrendController
+  submissionTrendController,
 );
 router.get(
   "/trend/resolutions",
   authenticate,
   authenticateAdmin,
-  resolutionTrendController
+  resolutionTrendController,
 );
 router.get(
   "/status-breakdown",
   authenticate,
   authenticateAdmin,
-  statusBreakdownController
+  statusBreakdownController,
 );
 router.get(
   "/complaints",
   authenticate,
   authenticateAdmin,
-  adminComplaintsController
+  adminComplaintsController,
 );
 
 // Billing & Revenue (Financial Roles Only)
@@ -54,19 +54,19 @@ router.get(
   "/billing/summary",
   authenticate,
   adminFinanceOnly,
-  getRevenueSummary
+  getRevenueSummary,
 );
 router.get(
   "/billing/revenue-monthly",
   authenticate,
   adminFinanceOnly,
-  getMonthlyRevenue
+  getMonthlyRevenue,
 );
 router.get(
   "/billing/brand-invoices/:brandId",
   authenticate,
   adminFinanceOnly,
-  getBrandInvoices
+  getBrandInvoices,
 );
 
 // Get pending brand ownership claims
@@ -89,7 +89,7 @@ router.get(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
-  }
+  },
 );
 
 // Update brand claim status
@@ -111,7 +111,7 @@ router.patch(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
-  }
+  },
 );
 
 export default router;

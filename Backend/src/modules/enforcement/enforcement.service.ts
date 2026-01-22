@@ -1,4 +1,4 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import { getLatestTrustScore } from "../trust/trust.service.js";
 
 export type EnforcementType =

@@ -9,6 +9,7 @@ import RatingStars from "../../../components/RatingStars";
 import { ReviewCard } from "../../../components/ReviewCard";
 import PublicHeader from "../../../components/PublicHeader";
 import { useSession } from "next-auth/react";
+import StandardLoader from "../../../components/StandardLoader";
 
 interface BrandProfile {
   id: string;
@@ -118,11 +119,7 @@ export default function BrandProfilePage() {
   ]);
 
   if (loading && !profile) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <StandardLoader fullPage />;
   }
 
   if (!profile && !loading) {

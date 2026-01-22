@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
 
           // Call the real backend login endpoint
           console.log(
-            `[Auth] Attempting login to ${apiUrl}/auth/login for ${credentials.email}`
+            `[Auth] Attempting login to ${apiUrl}/auth/login for ${credentials.email}`,
           );
           const response = await axios.post(`${apiUrl}/auth/login`, {
             email: credentials.email,
@@ -38,7 +38,7 @@ export const authOptions: NextAuthOptions = {
         } catch (error: any) {
           console.error(
             "[Auth] Login failed:",
-            error.response?.data || error.message
+            error.response?.data || error.message,
           );
           return null;
         }
@@ -63,6 +63,7 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.role = user.role;
+        token.brandId = user.brandId;
         token.accessToken = user.accessToken;
       }
       return token;
@@ -73,6 +74,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email;
         session.user.name = token.name;
         session.user.role = token.role;
+        session.user.brandId = token.brandId;
         session.accessToken = token.accessToken;
       }
       return session;

@@ -19,6 +19,7 @@ import DataTable, { Column } from "../../admin/components/DataTable";
 import clsx from "clsx";
 import EditBrandDialog from "../../../components/brand/EditBrandDialog";
 import BrandHeader from "../../../components/brand/BrandHeader";
+import { MetricCard } from "../../../components/brand/MetricCard";
 
 interface ManagedBrand {
   id: string;
@@ -31,9 +32,13 @@ interface ManagedBrand {
 
 interface BrandMetrics {
   totalComplaints: number;
+  totalComplaintsTrend: number;
   resolved: number;
+  resolvedTrend: number;
   pending: number;
+  pendingTrend: number;
   needsInfo: number;
+  needsInfoTrend: number;
   underReview: number;
 }
 
@@ -83,8 +88,20 @@ export default function BrandDashboard() {
         headers: { Authorization: `Bearer ${session.accessToken}` },
       });
 
+      const metrics = res.data.metrics || {
+        totalComplaints: 0,
+        totalComplaintsTrend: 0,
+        resolved: 0,
+        resolvedTrend: 0,
+        pending: 0,
+        pendingTrend: 0,
+        needsInfo: 0,
+        needsInfoTrend: 0,
+        underReview: 0,
+      };
+
       setData({
-        metrics: res.data.metrics,
+        metrics,
         managedBrands: res.data.managedBrands || [],
         trends: res.data.trends,
         statusDistribution: res.data.statusDistribution,
@@ -94,7 +111,15 @@ export default function BrandDashboard() {
       // Redirection logic for brands
       const hasVerifiedBrand = res.data.hasVerifiedBrand;
       const hasPendingClaim = res.data.hasPendingClaim;
+      const managedBrands = res.data.managedBrands || [];
 
+      // If no verified brand and no pending claim, redirect to claim page
+      if (!hasVerifiedBrand && !hasPendingClaim && managedBrands.length === 0) {
+        router.push("/brand/claim");
+        return;
+      }
+
+      // If has pending claim but no verified brand, show pending page
       if (!hasVerifiedBrand && hasPendingClaim) {
         router.push("/brand/verification-pending");
       }
@@ -232,24 +257,27 @@ export default function BrandDashboard() {
                 value={data.metrics.totalComplaints}
                 icon={Activity}
                 gradient="from-primary to-primary/80"
+                trend={data.metrics.totalComplaintsTrend}
               />
               <MetricCard
                 title="Resolved"
                 value={data.metrics.resolved}
                 icon={CheckCircle}
                 gradient="from-primary to-primary/80"
+                trend={data.metrics.resolvedTrend}
               />
               <MetricCard
                 title="Pending"
                 value={data.metrics.pending}
                 icon={Clock}
                 gradient="from-primary/60 to-primary/40"
+                trend={data.metrics.pendingTrend}
               />
               <MetricCard
                 title="Resolution Rate"
                 value={data.insights?.resolutionRate || 0}
                 icon={ShieldCheck}
-                gradient="from-indigo-500 to-primary"
+                gradient="from-primary to-primary/80"
                 suffix="%"
               />
             </div>
@@ -265,7 +293,7 @@ export default function BrandDashboard() {
                 Active brands under your management
               </p>
             </div>
-            <Link href="/brand/claim">
+            <Link href="/brand/add">
               <button className="btn-base btn-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg">add</span>
                 Add Brand
@@ -426,44 +454,5 @@ export default function BrandDashboard() {
         onSuccess={fetchDashboardData}
       />
     </>
-  );
-}
-
-// Reusable Metric Card
-interface MetricCardProps {
-  title: string;
-  value: number;
-  icon: React.ElementType;
-  gradient: string;
-  suffix?: string;
-}
-
-function MetricCard({
-  title,
-  value,
-  icon: Icon,
-  gradient,
-  suffix,
-}: MetricCardProps) {
-  return (
-    <div className="group relative overflow-hidden rounded-3xl bg-card border border-border shadow-sm hover:shadow-xl transition-all duration-500">
-      <div
-        className={`absolute inset-0 bg-linear-to-br ${gradient} opacity-5 group-hover:opacity-10 transition-opacity rounded-2xl`}
-      />
-      <div className="relative p-6 space-y-4">
-        <div
-          className={`p-3 w-fit rounded-2xl bg-linear-to-br ${gradient} shadow-lg shadow-black/10`}
-        >
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <p className="text-small font-bold text-muted-foreground">{title}</p>
-          <p className="text-4xl font-extrabold mt-1">
-            {value.toLocaleString()}
-            {suffix}
-          </p>
-        </div>
-      </div>
-    </div>
   );
 }

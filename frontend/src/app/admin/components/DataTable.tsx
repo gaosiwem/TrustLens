@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import clsx from "clsx";
+import Pager from "../../../components/Pager";
+import React from "react";
 
 export interface Column<T> {
   header: string;
@@ -28,6 +30,7 @@ interface DataTableProps<T> {
   }) => void;
   onRowClick?: (item: T) => void;
   searchPlaceholder?: string;
+  useStandardPager?: boolean;
 }
 
 export default function DataTable<T extends { id: string }>({
@@ -42,6 +45,7 @@ export default function DataTable<T extends { id: string }>({
   onParamsChange,
   onRowClick,
   searchPlaceholder = "Search...",
+  useStandardPager = false,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -181,9 +185,20 @@ export default function DataTable<T extends { id: string }>({
             </tbody>
           </table>
         </div>
+      </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
+      {/* Pagination */}
+      {useStandardPager ? (
+        <Pager
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={(page: number) =>
+            onParamsChange({ offset: (page - 1) * limit })
+          }
+          loading={loading}
+        />
+      ) : (
+        totalPages > 1 && (
           <div className="p-4 bg-muted/20 border-t border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <button
@@ -228,8 +243,8 @@ export default function DataTable<T extends { id: string }>({
               </select>
             </div>
           </div>
-        )}
-      </div>
+        )
+      )}
     </div>
   );
 }

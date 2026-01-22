@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 /**
  * Gets the billing profile for the authenticated brand.

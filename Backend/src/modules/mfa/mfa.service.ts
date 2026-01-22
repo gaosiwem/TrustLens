@@ -1,6 +1,6 @@
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 export async function generateMFASecret(userId: string, email: string) {
   const secret = speakeasy.generateSecret({
@@ -32,7 +32,7 @@ export async function generateMFASecret(userId: string, email: string) {
 
 export async function verifyMFAToken(
   userId: string,
-  token: string
+  token: string,
 ): Promise<boolean> {
   const mfa = await prisma.mFA.findUnique({
     where: { userId },
@@ -52,7 +52,7 @@ export async function verifyMFAToken(
 
 export async function enableMFA(
   userId: string,
-  verificationToken: string
+  verificationToken: string,
 ): Promise<boolean> {
   const mfa = await prisma.mFA.findUnique({
     where: { userId },

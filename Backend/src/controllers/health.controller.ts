@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import prisma from "../prismaClient.js";
-import redis from "../config/redis.js";
+import prisma from "../lib/prisma.js";
+import redis, { isRedisAvailable } from "../config/redis.js";
 import logger from "../config/logger.js";
 
 export async function healthCheck(req: Request, res: Response) {
@@ -8,20 +8,28 @@ export async function healthCheck(req: Request, res: Response) {
     // Check database connection
     await prisma.$queryRaw`SELECT 1`;
 
-    // Check Redis connection
-    await redis.ping();
+    // Check Redis connection status
+    let redisStatus = "disconnected";
+    if (isRedisAvailable()) {
+      try {
+        await redis.ping();
+        redisStatus = "connected";
+      } catch {
+        redisStatus = "error";
+      }
+    }
 
     const health = {
-      status: "healthy",
+      status: redisStatus === "connected" ? "healthy" : "degraded",
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       services: {
         database: "connected",
-        redis: "connected",
+        redis: redisStatus,
       },
     };
 
-    logger.info("Health check passed");
+    logger.info("Health check passed", { redisStatus });
     res.json(health);
   } catch (error) {
     logger.error("Health check failed:", error);

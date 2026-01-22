@@ -1,4 +1,4 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 export type EscalationStatus =
   | "PENDING"
@@ -35,7 +35,7 @@ export async function createEscalation(params: {
 export async function resolveEscalation(
   id: string,
   adminId: string,
-  status: EscalationStatus
+  status: EscalationStatus,
 ) {
   return prisma.escalationCase.update({
     where: { id },

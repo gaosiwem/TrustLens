@@ -49,11 +49,11 @@ export class OpenAIProvider implements AIProvider {
 
   async getBrandDomain(
     brandName: string,
-    hintDomain?: string
+    hintDomain?: string,
   ): Promise<string | null> {
     if (!client) {
       console.warn(
-        "[OpenAI] API Key missing. Skipping brand domain resolution."
+        "[OpenAI] API Key missing. Skipping brand domain resolution.",
       );
       return null;
     }
@@ -78,7 +78,7 @@ export class OpenAIProvider implements AIProvider {
       });
       const content = res.choices[0]?.message.content;
       console.log(
-        `[OpenAI Debug] Brand: ${brandName}, Hint: ${hintDomain}, RAW: "${content}"`
+        `[OpenAI Debug] Brand: ${brandName}, Hint: ${hintDomain}, RAW: "${content}"`,
       );
       const domain = content
         ? content.replace(/['"`]/g, "").trim().toLowerCase()
@@ -94,11 +94,11 @@ export class OpenAIProvider implements AIProvider {
   async evaluateBrandClaim(
     brandName: string,
     email: string,
-    documentNames: string[]
+    documentNames: string[],
   ): Promise<number> {
     if (!client) {
       console.warn(
-        "[OpenAI] API Key missing. Skipping brand claim evaluation."
+        "[OpenAI] API Key missing. Skipping brand claim evaluation.",
       );
       return 50; // Neutral default
     }
@@ -138,32 +138,40 @@ export class OpenAIProvider implements AIProvider {
     brandName: string,
     text: string,
     userName?: string,
-    userEmail?: string
-  ): Promise<string> {
-    if (!client) return text;
+    userEmail?: string,
+  ): Promise<string | null> {
+    if (!client) {
+      console.warn("[OpenAI] API Key missing. Skipping AI summary generation.");
+      return null;
+    }
     try {
       const userRef = userName || "the Customer";
       const contactRef = userEmail || "the registered email";
 
       const prompt = `
-        You are a professional complaint editor. 
-        Rewrite the following customer complaint for the brand "${brandName}" to be more clear, professional, and effective while maintaining the core concerns.
+        You are an AI Analyst for TrustLens, a consumer protection and brand reputation platform.
+        Transform the following customer complaint for the brand "${brandName}" into an "Intelligent Synthesis."
+        
+        GOAL:
+        Provide a concise, neutral, and professional overview that clarifies the core dispute, the impact on the customer, and the implicit or explicit resolution requested.
         
         CRITICAL RULES:
-        1. The output MUST start with a formal Subject line.
-        2. The Subject line MUST be on its own line.
-        3. The Salutation (e.g., "Dear ${brandName} Customer Service Team,") MUST be on its own line.
-        4. Use proper paragraphs and line breaks for readability.
-        5. DO NOT use placeholders like "[Manager's Name]", "[Customer Service Team]", "[Your Name]", or "[Your Contact Information]".
-        6. Use "${brandName} Customer Service Team" or "${brandName} Management" for brand-side references.
-        7. Use "${userRef}" for the signature and "${contactRef}" for contact references.
-        8. Keep it concise (under 300 words).
-        9. Correct any spelling or grammatical errors from the original complaint without mentioning the errors in the output.
+        1. DO NOT simply rewrite the text. SYNTHESIZE the key points.
+        2. Format with a clear "Subject: " line first.
+        3. Use a formal header: "Internal Synthesis for ${brandName} Management"
+        4. Use professional, objective language. Avoid emotional or hyperbolic terms unless they are central to the complaint's facts.
+        5. Structure the output into:
+           - Core Issue: (What happened)
+           - Impact: (How it affected the customer)
+           - Desired Outcome: (What the customer wants)
+        6. DO NOT use placeholders like "[Name]" or "[Date]". If info is missing, omit it.
+        7. Maintain anonymity of the consumer (refer to them as "${userRef}").
+        8. Correct grammatical errors silently.
         
-        Original complaint:
-        ${text}
+        Original complaint text:
+        "${text}"
         
-        Professional rewrite:
+        Intelligent Synthesis:
       `;
 
       const res = await client.chat.completions.create({
@@ -173,10 +181,15 @@ export class OpenAIProvider implements AIProvider {
         temperature: 0.7,
       });
 
-      return res.choices[0]?.message.content || text;
+      const aiResponse = res.choices[0]?.message.content;
+      if (!aiResponse || aiResponse.length < 50) {
+        console.warn("[OpenAI] AI response was empty or too short.");
+        return null;
+      }
+      return aiResponse;
     } catch (err) {
       console.error("[OpenAI] Refine complaint failed:", err);
-      return text;
+      return null;
     }
   }
 }

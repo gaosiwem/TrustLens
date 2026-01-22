@@ -1,4 +1,4 @@
-import prisma from "../prismaClient.js";
+import prisma from "../lib/prisma.js";
 import type { Request } from "express";
 
 export async function createAuditLog(params: {

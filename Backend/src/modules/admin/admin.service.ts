@@ -1,4 +1,4 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 export async function getPlatformStats() {
   const [total, resolved, pending] = await Promise.all([

@@ -1,13 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import axios from "axios";
 import BrandClaimForm from "../../../components/BrandClaimForm";
 import Link from "next/link";
 import { Button } from "../../../components/ui/button";
-import { useEffect, useState } from "react";
 import { isPersonalEmail } from "../../../utils/email";
+import UserProfileMenu from "../../../components/UserProfileMenu";
 
 // Helper: Local Badge component
 function Badge({ children, variant, className }: any) {
@@ -26,57 +24,16 @@ function Badge({ children, variant, className }: any) {
 
 export default function BrandClaimPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
-  const [checkingStatus, setCheckingStatus] = useState(true);
 
-  useEffect(() => {
-    const performChecks = async () => {
-      if (status === "loading") return;
-
-      if (!session) {
-        setCheckingStatus(false);
-        return;
-      }
-
-      if ((session.user as any)?.role === "BRAND") {
-        router.replace("/brand/dashboard");
-        return;
-      }
-
-      try {
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
-        const res = await axios.get(`${apiUrl}/dashboard`, {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        });
-
-        if (res.data.hasPendingClaim) {
-          router.replace("/brand/verification-pending");
-          return;
-        }
-      } catch (err) {
-        console.error("Error checking claim status:", err);
-      } finally {
-        setCheckingStatus(false);
-      }
-    };
-
-    performChecks();
-  }, [session, status, router]);
-
-  if (status === "loading" || checkingStatus) {
+  if (status === "loading") {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
         <p className="mt-4 text-sm font-bold tracking-widest text-muted-foreground uppercase animate-pulse">
-          Authenticating...
+          Loading...
         </p>
       </div>
     );
-  }
-
-  if (session && (session.user as any)?.role === "BRAND") {
-    return null;
   }
 
   return (
@@ -93,6 +50,9 @@ export default function BrandClaimPage() {
                 TrustLens
               </span>
             </Link>
+
+            {/* Profile Menu - Show when logged in */}
+            {session && <UserProfileMenu />}
           </div>
         </div>
       </nav>

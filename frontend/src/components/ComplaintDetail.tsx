@@ -11,6 +11,7 @@ import StatusBadge from "./StatusBadge";
 import clsx from "clsx";
 import RatingStars from "./RatingStars";
 import { BadgeCheck } from "lucide-react";
+import StandardLoader from "./StandardLoader";
 
 interface ComplaintDetailProps {
   id: string;
@@ -125,15 +126,7 @@ export function ComplaintDetail({ id }: ComplaintDetailProps) {
   };
 
   if (loading) {
-    return (
-      <div className="flex-1 p-6 bg-card rounded-2xl border border-border shadow-sm">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/2"></div>
-          <div className="h-4 bg-muted rounded w-full"></div>
-          <div className="h-4 bg-muted rounded w-3/4"></div>
-        </div>
-      </div>
-    );
+    return <StandardLoader />;
   }
 
   if (!complaint) {

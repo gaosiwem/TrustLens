@@ -1,4 +1,4 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import jwt from "jsonwebtoken";
 import { ENV } from "../../config/env.js";
 import { hashPassword, verifyPassword } from "./auth.utils.js";
@@ -14,12 +14,18 @@ export async function register(email: string, password: string, name?: string) {
   const brandId = user.managedBrands[0]?.id;
   const token = jwt.sign(
     { userId: user.id, role: user.role, brandId },
-    ENV.JWT_SECRET
+    ENV.JWT_SECRET,
   );
   logger.info(`User registered successfully: ${email}`, { userId: user.id });
   return {
     token,
-    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      brandId,
+    },
   };
 }
 
@@ -45,17 +51,28 @@ export async function login(email: string, password: string) {
   logger.info(`User logged in successfully: ${email}`, { userId: user.id });
 
   const managedBrand = await prisma.brand.findFirst({
-    where: { managerId: user.id },
+    where: {
+      OR: [
+        { managerId: user.id },
+        { members: { some: { userId: user.id, isActive: true } } },
+      ],
+    },
     select: { id: true },
   });
 
   const token = jwt.sign(
     { userId: user.id, role: user.role, brandId: managedBrand?.id },
-    ENV.JWT_SECRET
+    ENV.JWT_SECRET,
   );
   return {
     token,
-    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      brandId: managedBrand?.id,
+    },
   };
 }
 
@@ -71,16 +88,27 @@ export async function googleLogin(email: string, providerId: string) {
   }
 
   const managedBrand = await prisma.brand.findFirst({
-    where: { managerId: user.id },
+    where: {
+      OR: [
+        { managerId: user.id },
+        { members: { some: { userId: user.id, isActive: true } } },
+      ],
+    },
     select: { id: true },
   });
 
   const token = jwt.sign(
     { userId: user.id, role: user.role, brandId: managedBrand?.id },
-    ENV.JWT_SECRET
+    ENV.JWT_SECRET,
   );
   return {
     token,
-    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      brandId: managedBrand?.id,
+    },
   };
 }

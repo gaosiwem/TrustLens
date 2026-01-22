@@ -6,25 +6,25 @@ export async function rewriteComplaint(
   brandName: string,
   text: string,
   userName?: string,
-  userEmail?: string
-): Promise<string> {
+  userEmail?: string,
+): Promise<string | null> {
   try {
     const response = await provider.refineComplaint(
       brandName,
       text,
       userName,
-      userEmail
+      userEmail,
     );
 
-    // If response is empty or too short, return original
-    if (!response || response.length < 20) {
-      return text;
+    // If response is empty or too short, return null
+    if (!response || response.length < 50) {
+      return null;
     }
 
     return response;
   } catch (error) {
     console.error("AI rewrite failed:", error);
-    // Fallback to original text if AI fails
-    return text;
+    // Fallback to null so we don't store redundant data
+    return null;
   }
 }

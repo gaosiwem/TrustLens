@@ -6,7 +6,7 @@ import {
   getComplaintById,
   searchComplaints,
 } from "./complaint.service.js";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import logger from "../../config/logger.js";
 
 export async function createComplaintController(req: Request, res: Response) {
@@ -75,7 +75,7 @@ export async function listComplaintsController(req: Request, res: Response) {
 
       console.log(
         "[ListComplaints] Managed brands for BRAND user:",
-        managedBrands
+        managedBrands,
       );
 
       brandId = managedBrands.map((b) => b.id);
@@ -83,7 +83,7 @@ export async function listComplaintsController(req: Request, res: Response) {
       if (brandId.length === 0) {
         // This brand manager has no linked brands yet? Return empty list.
         console.log(
-          "[ListComplaints] No managed brands found, returning empty"
+          "[ListComplaints] No managed brands found, returning empty",
         );
         return res.json({ data: [], nextCursor: null });
       }
@@ -93,11 +93,14 @@ export async function listComplaintsController(req: Request, res: Response) {
     }
 
     const result = await listComplaints({
-      cursor: req.query["cursor"] as string | undefined,
+      offset: Number(req.query["offset"] ?? 0),
       limit: Number(req.query["limit"] ?? 10),
       status: req.query["status"],
       brandId,
       userId,
+      search: req.query["search"] as string | undefined,
+      sortBy: req.query["sortBy"] as string | undefined,
+      sortOrder: req.query["sortOrder"] as "asc" | "desc" | undefined,
     });
 
     res.json(result);
@@ -112,7 +115,8 @@ export async function searchComplaintsController(req: Request, res: Response) {
     const limit = Number(req.query.limit) || 10;
     const status = req.query.status as string | undefined;
     const brandName = req.query.brandName as string | undefined;
-    const query = req.query.q as string | undefined;
+    const queryChar = req.query.q || req.query.search;
+    const query = queryChar as string | undefined;
 
     const searchParams = {
       page,
@@ -163,7 +167,7 @@ export async function getComplaintByIdController(req: Request, res: Response) {
 
 export async function publicRecentComplaintsController(
   req: Request,
-  res: Response
+  res: Response,
 ) {
   try {
     const result = await listComplaints({
@@ -193,7 +197,7 @@ export async function publicRecentComplaintsController(
         const trustScore = (v * R + m * C) / (v + m);
 
         return { brandId, trustScore, totalComplaints };
-      })
+      }),
     );
 
     const enrichedComplaints = result.data.map((complaint) => {

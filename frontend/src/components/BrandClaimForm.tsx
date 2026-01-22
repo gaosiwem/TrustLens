@@ -1,6 +1,6 @@
 "use client";
 import { useForm } from "react-hook-form";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useBrandClaim } from "../hooks/useBrandClaim";
 import { toast } from "sonner";
@@ -15,6 +15,12 @@ interface BrandClaimFormData {
   files?: File[];
 }
 
+interface BrandSuggestion {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+}
+
 export default function BrandClaimForm() {
   const router = useRouter();
   const {
@@ -27,7 +33,74 @@ export default function BrandClaimForm() {
   const [aiScore, setAiScore] = useState<number | null>(null);
   const mutation = useBrandClaim();
 
+  // Autocomplete state
+  const [suggestions, setSuggestions] = useState<BrandSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
   const selectedFiles = watch("files") || [];
+  const brandNameValue = watch("brandName") || "";
+
+  // Search brands as user types
+  useEffect(() => {
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+
+    if (brandNameValue.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    searchTimeout.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+        const res = await fetch(
+          `${apiUrl}/brands/public/search?q=${encodeURIComponent(brandNameValue)}`,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setSuggestions(data.slice(0, 5)); // Limit to 5 suggestions
+          setShowSuggestions(data.length > 0);
+        }
+      } catch (error) {
+        console.error("Error searching brands:", error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300); // 300ms debounce
+
+    return () => {
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+    };
+  }, [brandNameValue]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectBrand = (brand: BrandSuggestion) => {
+    setValue("brandName", brand.name);
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
 
   const onSubmit = async (data: BrandClaimFormData) => {
     try {
@@ -61,15 +134,86 @@ export default function BrandClaimForm() {
       </div>
 
       <div className="space-y-5">
-        <InputField
-          label="Brand Name"
-          placeholder="e.g. Shoprite"
-          icon={
-            <span className="material-symbols-outlined text-lg">store</span>
-          }
-          {...register("brandName", { required: "Brand name is required" })}
-          error={errors.brandName?.message}
-        />
+        {/* Brand Name with Autocomplete */}
+        <div ref={wrapperRef} className="relative">
+          <InputField
+            label="Brand Name"
+            placeholder="e.g. Shoprite"
+            icon={
+              <span className="material-symbols-outlined text-lg">store</span>
+            }
+            {...register("brandName", { required: "Brand name is required" })}
+            error={errors.brandName?.message}
+            autoComplete="off"
+          />
+
+          {/* Loading indicator */}
+          {isSearching && (
+            <div className="absolute right-3 top-[38px]">
+              <div className="w-4 h-4 rounded-full border-2 border-primary/20 border-t-primary animate-spin"></div>
+            </div>
+          )}
+
+          {/* Suggestions dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+              <div className="p-2 border-b border-border">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Existing Brands
+                </p>
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                {suggestions.map((brand) => {
+                  const apiUrl =
+                    process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+                  const logoSrc = brand.logoUrl
+                    ? brand.logoUrl.startsWith("http")
+                      ? brand.logoUrl
+                      : `${apiUrl}${brand.logoUrl}`
+                    : null;
+
+                  return (
+                    <button
+                      key={brand.id}
+                      type="button"
+                      onClick={() => selectBrand(brand)}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                        {logoSrc ? (
+                          <img
+                            src={logoSrc}
+                            alt={brand.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Replace with initial on error
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = "none";
+                              const parent = target.parentElement;
+                              if (parent) {
+                                parent.innerHTML = `<span class="text-sm font-bold text-primary">${brand.name.charAt(0)}</span>`;
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="text-sm font-bold text-primary">
+                            {brand.name.charAt(0)}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold">{brand.name}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Click to select this brand
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
 
         <InputField
           label="Official Email"

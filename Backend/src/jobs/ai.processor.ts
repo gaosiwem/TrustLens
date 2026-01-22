@@ -1,5 +1,5 @@
 import { Queue, Worker } from "bullmq";
-import prisma from "../prismaClient.js";
+import prisma from "../lib/prisma.js";
 import { analyzeComplaint } from "../modules/ai/ai.service.js";
 
 import { recalcBrandScore } from "../modules/reputation/reputation.service.js";
@@ -32,7 +32,7 @@ const worker = new Worker(
       await recalcBrandScore(complaint.brandId);
     }
   },
-  { connection }
+  { connection },
 );
 
 worker.on("failed", (job, err) => {

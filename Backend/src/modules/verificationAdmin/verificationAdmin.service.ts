@@ -1,4 +1,4 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 export async function getVerificationOverview() {
   const total = await prisma.verifiedRequest.count();
@@ -51,7 +51,7 @@ export async function getVerificationRevenue() {
 
   const totalRevenue = subscriptions.reduce(
     (sum, s) => sum + s.plan.monthlyPrice / 100, // Assuming price is in cents
-    0
+    0,
   );
 
   return {

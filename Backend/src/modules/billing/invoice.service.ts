@@ -1,4 +1,4 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import { calculateVATFromGross } from "./vat.service.js";
 import { generateInvoiceNumber } from "./invoice-number.service.js";
 

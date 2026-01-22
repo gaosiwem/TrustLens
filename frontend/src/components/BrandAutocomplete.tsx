@@ -18,6 +18,7 @@ interface BrandAutocompleteProps {
   placeholder?: string;
   error?: string;
   onSelect: (brandName: string) => void;
+  onSelectBrand?: (brand: BrandResult | null) => void;
   defaultValue?: string;
 }
 
@@ -26,6 +27,7 @@ export default function BrandAutocomplete({
   placeholder = "Search for a company...",
   error,
   onSelect,
+  onSelectBrand,
   defaultValue = "",
 }: BrandAutocompleteProps) {
   const [query, setQuery] = useState(defaultValue);
@@ -87,6 +89,7 @@ export default function BrandAutocomplete({
     setQuery(brand.name);
     setSelectedBrand(brand);
     onSelect(brand.name);
+    onSelectBrand?.(brand);
     setShowDropdown(false);
     setResults([]);
   };
@@ -95,6 +98,7 @@ export default function BrandAutocomplete({
     setQuery("");
     setSelectedBrand(null);
     onSelect("");
+    onSelectBrand?.(null);
     setShowDropdown(false);
   };
 
@@ -174,11 +178,11 @@ export default function BrandAutocomplete({
                       <h4 className="font-bold text-sm text-foreground truncate group-hover:text-primary transition-colors">
                         {brand.name}
                       </h4>
-                      {brand.isVerified && (
+                      {/* {brand.isVerified && (
                         <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-[8px] font-black text-primary uppercase tracking-tighter">
                           Verified
                         </span>
-                      )}
+                      )} */}
                     </div>
                     <p className="text-[10px] text-muted-foreground font-bold mt-0.5">
                       {brand.complaintCount || 0} Reports • AI Monitored

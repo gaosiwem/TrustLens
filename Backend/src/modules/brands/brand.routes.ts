@@ -11,11 +11,20 @@ import {
   getBrandEnforcementsController,
 } from "./brand.controller.js";
 import {
+  getBrandPrefsController,
+  updateBrandPrefsController,
+} from "./brandAlertPreference.controller.js";
+import {
+  getBrandSentimentDailyController,
+  getBrandSentimentEventsController,
+  getComplaintSentimentSnapshotController,
+} from "./sentiment.controller.js";
+import {
   authenticate,
   authenticateAdmin,
 } from "../../middleware/auth.middleware.js";
 import { upload } from "../../middleware/upload.middleware.js";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 import { evaluateBrandClaimScore } from "../ai/ai.service.js";
 import { isCorporateEmail } from "../../utils/email.utils.js";
@@ -65,7 +74,7 @@ router.post(
       const aiScore = await evaluateBrandClaimScore(
         brandName,
         email,
-        documentNames
+        documentNames,
       );
 
       // Save file paths
@@ -105,7 +114,7 @@ router.post(
         error: error.message,
       });
     }
-  }
+  },
 );
 
 router.post(
@@ -113,7 +122,7 @@ router.post(
   authenticate,
   authenticateAdmin,
   upload.single("logo"),
-  createBrandController
+  createBrandController,
 );
 router.get("/public/search", searchBrandsController);
 router.get("/public/:id", getPublicBrandProfileController);
@@ -124,17 +133,38 @@ router.patch(
   "/:id",
   authenticate,
   upload.single("logo"),
-  updateBrandController
+  updateBrandController,
 );
 router.delete("/:id", authenticate, authenticateAdmin, deleteBrandController);
 router.patch(
   "/:id/verify",
   authenticate,
   authenticateAdmin,
-  toggleBrandVerificationController
+  toggleBrandVerificationController,
 );
 
 router.get("/:id/trust-score", authenticate, getBrandTrustScoreController);
 router.get("/:id/enforcements", authenticate, getBrandEnforcementsController);
+
+// SPRINT 28: Brand Alert Preferences
+router.get("/:id/alert-preferences", authenticate, getBrandPrefsController);
+router.patch(
+  "/:id/alert-preferences",
+  authenticate,
+  updateBrandPrefsController,
+);
+
+// SPRINT 29: Sentiment Analytics
+router.get("/sentiment/daily", authenticate, getBrandSentimentDailyController);
+router.get(
+  "/sentiment/events",
+  authenticate,
+  getBrandSentimentEventsController,
+);
+router.get(
+  "/complaints/:id/sentiment",
+  authenticate,
+  getComplaintSentimentSnapshotController,
+);
 
 export default router;

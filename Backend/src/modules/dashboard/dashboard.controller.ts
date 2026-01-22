@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import {
   getDashboardMetrics,
   getComplaintTrends,
@@ -135,7 +135,7 @@ export async function dashboardController(req: Request, res: Response) {
 
 export async function getBrandComplaintsController(
   req: Request,
-  res: Response
+  res: Response,
 ) {
   try {
     const userId = req.user?.userId;
