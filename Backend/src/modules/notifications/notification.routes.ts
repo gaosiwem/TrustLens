@@ -19,7 +19,7 @@ router.patch("/:id/read", authenticate, markNotificationReadController);
 router.patch(
   "/mark-all-read",
   authenticate,
-  markAllNotificationsReadController
+  markAllNotificationsReadController,
 );
 
 export default router;

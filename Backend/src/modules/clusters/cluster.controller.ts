@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 export async function getClustersController(req: Request, res: Response) {
   try {

@@ -9,4 +9,5 @@ export interface VerificationAnalytics {
   verifiedBadgeClicks: number;
   escalationRateBefore: number;
   escalationRateAfter: number;
+  verificationDate: string;
 }

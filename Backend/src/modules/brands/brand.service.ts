@@ -1,4 +1,4 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import { findBrandLogo } from "./logo.service.js";
 import logger from "../../config/logger.js";
 

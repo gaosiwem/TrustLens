@@ -1,10 +1,15 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import { resolveBrand } from "../brands/brand.service.js";
 import { assertTransition } from "./complaint.lifecycle.js";
 import { logAction as auditLog } from "../audit/audit.service.js";
 import { aiQueue } from "../../jobs/ai.processor.js";
 import { rewriteComplaint } from "../ai/ai.rewrite.service.js";
 import logger from "../../config/logger.js";
+import {
+  notifyBrand,
+  createUserNotification,
+} from "../notifications/notification.service.js";
+import { getSentimentQueue } from "../../queues/sentiment.queue.js";
 
 export async function createComplaint(input: {
   userId: string;
@@ -40,7 +45,7 @@ export async function createComplaint(input: {
   if (input.attachments && input.attachments.length > 0) {
     logger.info(
       "[ComplaintService] Processing %d attachments...",
-      input.attachments.length
+      input.attachments.length,
     );
     await Promise.all(
       input.attachments.map((file) =>
@@ -51,8 +56,8 @@ export async function createComplaint(input: {
             mimeType: file.mimetype,
             size: file.size,
           },
-        })
-      )
+        }),
+      ),
     );
     logger.info("[ComplaintService] Attachments stored.");
   }
@@ -63,12 +68,19 @@ export async function createComplaint(input: {
     input.brandName,
     input.description,
     user?.name || undefined,
-    user?.email
+    user?.email,
   )
     .then(async (aiSummary) => {
+      if (!aiSummary) {
+        logger.info(
+          "[ComplaintService] AI summary was insufficient or failed, skipping DB update for: %s",
+          complaint.id,
+        );
+        return;
+      }
       logger.info(
         "[ComplaintService] AI summary received for: %s",
-        complaint.id
+        complaint.id,
       );
       await prisma.complaint.update({
         where: { id: complaint.id },
@@ -83,6 +95,35 @@ export async function createComplaint(input: {
   aiQueue.add("analyze", { id: complaint.id }).catch((err) => {
     console.error("Failed to add to AI queue (Redis down?):", err.message);
   });
+
+  // Sprint 29: Sentiment Analysis
+  const queue = getSentimentQueue();
+  if (queue) {
+    queue
+      .add("complaint-sentiment", {
+        brandId: complaint.brandId,
+        complaintId: complaint.id,
+        sourceType: "COMPLAINT",
+        sourceId: complaint.id,
+        text: `${complaint.title ?? ""}\n\n${complaint.description ?? ""}`.trim(),
+      })
+      .catch((err) => {
+        logger.error("Failed to add to sentiment queue:", err);
+      });
+  }
+
+  // SPRINT 28: Notify Brand
+  try {
+    await notifyBrand({
+      brandId: brand.id,
+      type: "COMPLAINT_CREATED",
+      title: "New Complaint Received",
+      body: `A new complaint has been filed against your brand: ${complaint.title}`,
+      link: `/brand/complaints/${complaint.id}`,
+    });
+  } catch (err) {
+    logger.error("Failed to notify brand of new complaint:", err);
+  }
 
   console.log("[ComplaintService] Returning response.");
   return complaint;
@@ -125,14 +166,43 @@ export async function changeComplaintStatus(params: {
     },
   });
 
+  // SPRINT 28: Notify Brand of status change
+  try {
+    await notifyBrand({
+      brandId: updatedComplaint.brandId,
+      type: "STATUS_CHANGED",
+      title: `Complaint Status: ${params.toStatus}`,
+      body: `Status of complaint "${updatedComplaint.title}" changed from ${complaint.status} to ${params.toStatus}`,
+      link: `/brand/complaints/${updatedComplaint.id}`,
+    });
+  } catch (err) {
+    logger.error("Failed to notify brand of status change:", err);
+  }
+
+  // SPRINT 28: Notify User of status change
+  try {
+    await createUserNotification({
+      userId: updatedComplaint.userId,
+      type: "STATUS_CHANGED",
+      title: "Complaint Update",
+      body: `Your complaint "${updatedComplaint.title}" status has been updated to ${params.toStatus}`,
+      link: `/dashboard/complaints/${updatedComplaint.id}`,
+    });
+  } catch (err) {
+    logger.error("Failed to notify user of status change:", err);
+  }
+
   return updatedComplaint;
 }
 export async function listComplaints(params: {
-  cursor?: string | undefined;
+  offset?: number | undefined;
   limit: number;
   status?: any | undefined;
   brandId?: string | string[] | undefined;
   userId?: string | undefined;
+  search?: string | undefined;
+  sortBy?: string | undefined;
+  sortOrder?: "asc" | "desc" | undefined;
 }) {
   const where: any = {};
   if (params.status) where.status = params.status;
@@ -145,48 +215,72 @@ export async function listComplaints(params: {
     }
   }
 
-  const complaints = await prisma.complaint.findMany({
-    take: params.limit + 1,
-    ...(params.cursor && {
-      cursor: { id: params.cursor },
-      skip: 1,
-    }),
-    where,
-    orderBy: { createdAt: "desc" },
-    include: {
-      brand: {
-        include: {
-          subscription: true,
+  if (params.search) {
+    where.OR = [
+      { title: { contains: params.search, mode: "insensitive" } },
+      { description: { contains: params.search, mode: "insensitive" } },
+      {
+        brand: {
+          name: { contains: params.search, mode: "insensitive" },
         },
       },
-      attachments: true,
-      user: {
-        select: {
-          id: true,
-          name: true,
-          createdAt: true,
-          _count: {
-            select: { complaints: true },
-          },
-        },
-      },
-      ratings: true,
-      followups: {
-        include: {
-          user: {
-            select: { name: true, role: true },
-          },
-        },
-      },
-    },
-  });
+    ];
+  }
 
-  const hasNextPage = complaints.length > params.limit;
-  const data = hasNextPage ? complaints.slice(0, -1) : complaints;
+  const sortBy = params.sortBy || "createdAt";
+  const sortOrder = params.sortOrder || "desc";
+
+  // Handle nested sorting for brand.name
+  let orderBy: any = {};
+  if (sortBy === "brand.name") {
+    orderBy = { brand: { name: sortOrder } };
+  } else {
+    orderBy = { [sortBy]: sortOrder };
+  }
+
+  if (sortBy === "createdAt" || !sortBy) {
+    orderBy = { createdAt: sortOrder as "asc" | "desc" };
+  }
+
+  const [total, complaints] = await Promise.all([
+    prisma.complaint.count({ where }),
+    prisma.complaint.findMany({
+      skip: params.offset || 0,
+      take: params.limit,
+      where,
+      orderBy,
+      include: {
+        brand: {
+          include: {
+            subscription: true,
+          },
+        },
+        attachments: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            createdAt: true,
+            _count: {
+              select: { complaints: true },
+            },
+          },
+        },
+        ratings: true,
+        followups: {
+          include: {
+            user: {
+              select: { name: true, role: true },
+            },
+          },
+        },
+      },
+    }),
+  ]);
 
   return {
-    data,
-    nextCursor: hasNextPage ? data[data.length - 1]?.id : null,
+    data: complaints,
+    total,
   };
 }
 
@@ -196,8 +290,10 @@ export async function searchComplaints(params: {
   status?: string;
   brandName?: string;
   query?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 }) {
-  const { page, limit, status, brandName, query } = params;
+  const { page, limit, status, brandName, query, sortBy, sortOrder } = params;
   const skip = (page - 1) * limit;
 
   const where: any = {};
@@ -220,13 +316,17 @@ export async function searchComplaints(params: {
     ];
   }
 
+  const orderBy = sortBy
+    ? { [sortBy]: sortOrder || "desc" }
+    : { createdAt: "desc" as const };
+
   const [total, complaints] = await Promise.all([
     prisma.complaint.count({ where }),
     prisma.complaint.findMany({
       where,
       skip,
       take: limit,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       include: {
         brand: {
           include: {

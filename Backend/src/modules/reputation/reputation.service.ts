@@ -1,4 +1,4 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import { computeScore } from "./reputation.engine.js";
 
 export async function recalcBrandScore(brandId: string) {
@@ -10,7 +10,7 @@ export async function recalcBrandScore(brandId: string) {
   if (complaints.length === 0) return;
 
   const validComplaints = complaints.filter(
-    (c) => (c as any).sentimentScore !== null
+    (c) => (c as any).sentimentScore !== null,
   );
   const avg =
     validComplaints.reduce((a, c) => a + ((c as any).sentimentScore || 0), 0) /
@@ -22,7 +22,7 @@ export async function recalcBrandScore(brandId: string) {
     avg,
     0.0, // platform mean (starting point)
     5, // confidence factor
-    resolved / complaints.length
+    resolved / complaints.length,
   );
 
   await prisma.reputationScore.upsert({

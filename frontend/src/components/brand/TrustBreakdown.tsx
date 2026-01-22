@@ -9,12 +9,27 @@ interface TrustBreakdownProps {
     activity: number;
     verification: number;
   };
+  calculation?: {
+    totalComplaints: number;
+    resolvedComplaints: number;
+    highRiskResponses: number;
+    isVerified: boolean;
+    plan: string;
+  };
 }
 
 export default function TrustBreakdown({
   averageRating,
-  factors = { authenticity: 85, activity: 92, verification: 100 },
+  factors,
+  calculation,
 }: TrustBreakdownProps) {
+  // Use provided factors or fallback to placeholder (only for preview)
+  const displayFactors = factors || {
+    authenticity: 85,
+    activity: 92,
+    verification: 100,
+  };
+
   // Score is 0-5, convert to percentage for meter
   const percentage = (averageRating / 5) * 100;
 
@@ -69,14 +84,22 @@ export default function TrustBreakdown({
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
               <span>Authenticity Score</span>
             </div>
-            <span className="text-emerald-500">{factors.authenticity}%</span>
+            <span className="text-emerald-500">
+              {displayFactors.authenticity}%
+            </span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-emerald-500 transition-all duration-1000 delay-100"
-              style={{ width: `${factors.authenticity}%` }}
+              style={{ width: `${displayFactors.authenticity}%` }}
             />
           </div>
+          {calculation && calculation.highRiskResponses > 0 && (
+            <p className="text-[9px] text-error font-bold tracking-tight">
+              -{calculation.highRiskResponses * 5} penalty from AI-flagged
+              responses
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -85,14 +108,20 @@ export default function TrustBreakdown({
               <Zap className="w-4 h-4 text-amber-500" />
               <span>Response Activity</span>
             </div>
-            <span className="text-amber-500">{factors.activity}%</span>
+            <span className="text-amber-500">{displayFactors.activity}%</span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-amber-500 transition-all duration-1000 delay-200"
-              style={{ width: `${factors.activity}%` }}
+              style={{ width: `${displayFactors.activity}%` }}
             />
           </div>
+          {calculation && (
+            <p className="text-[9px] text-muted-foreground font-medium">
+              Resolution: {calculation.resolvedComplaints} of{" "}
+              {calculation.totalComplaints} complaints
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -101,23 +130,39 @@ export default function TrustBreakdown({
               <Award className="w-4 h-4 text-blue-500" />
               <span>Verification Tier</span>
             </div>
-            <span className="text-blue-500">{factors.verification}%</span>
+            <span className="text-blue-500">
+              {displayFactors.verification}%
+            </span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-blue-500 transition-all duration-1000 delay-300"
-              style={{ width: `${factors.verification}%` }}
+              style={{ width: `${displayFactors.verification}%` }}
             />
           </div>
+          {calculation && (
+            <p className="text-[9px] text-muted-foreground font-medium">
+              Level: {calculation.plan} (
+              {calculation.isVerified ? "Verified" : "Public"})
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="p-4 rounded-2xl bg-muted/40 border border-border flex gap-3">
-        <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-        <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">
-          The TrustScore is a Bayesian average that considers both your raw
-          rating and the consistency of reviews. High authenticity and frequent
-          resolution improve this score.
+      <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-3">
+        <div className="flex gap-3">
+          <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-[10px] text-muted-foreground leading-relaxed font-semibold">
+            How is it calculated?
+          </p>
+        </div>
+        <p className="text-[9px] text-muted-foreground/80 leading-relaxed font-medium pl-7">
+          Your TrustScore starts at 100. Points are deducted based on:
+          <br />• <b>Resolution Rate</b>: Penalties if under 50% or 30%.
+          <br />• <b>AI Authenticity</b>: -5 points for every "High Risk"
+          flagged response.
+          <br />• <b>Verification</b>: Tiered bonus for Verified status and
+          Premium plans.
         </p>
       </div>
     </div>

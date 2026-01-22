@@ -1,7 +1,13 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import { evaluateAuthenticity } from "../responderAuthenticity/authenticity.service.js";
 import { evaluateEntityTrust } from "../trust/trust.service.js";
 import { processEnforcement } from "../enforcement/enforcement.service.js";
+import {
+  notifyBrand,
+  createUserNotification,
+} from "../notifications/notification.service.js";
+import { getSentimentQueue } from "../../queues/sentiment.queue.js";
+import logger from "../../config/logger.js";
 
 export async function addFollowup(params: {
   complaintId: string;
@@ -78,7 +84,7 @@ export async function addFollowup(params: {
     if ((user?.role as any) !== "BRAND") {
       const complaint = await tx.complaint.findUnique({
         where: { id: params.complaintId },
-        select: { status: true },
+        select: { status: true, brandId: true, title: true },
       });
 
       if (complaint) {
@@ -104,6 +110,67 @@ export async function addFollowup(params: {
             },
           });
         }
+
+        // SPRINT 28: Notify Brand
+        await notifyBrand({
+          brandId: complaint.brandId,
+          type: "NEW_CONSUMER_MESSAGE",
+          title: "New Message from Consumer",
+          body: `A consumer has sent a new message regarding complaint: ${complaint.title}`,
+          link: `/brand/complaints/${params.complaintId}`,
+        });
+      }
+    }
+
+    // If a BRAND user responds, notify consumer
+    if ((user?.role as any) === "BRAND") {
+      const complaint = await tx.complaint.findUnique({
+        where: { id: params.complaintId },
+        select: { userId: true, title: true },
+      });
+
+      if (complaint) {
+        await createUserNotification({
+          userId: complaint.userId,
+          type: "BRAND_RESPONSE",
+          title: "Brand Responded",
+          body: `A brand has responded to your complaint: ${complaint.title}`,
+          link: `/dashboard/complaints/${params.complaintId}`,
+        });
+      }
+    }
+
+    // Sprint 29: Sentiment Analysis for the new followup
+    // Re-fetch complaint to ensure we have the brandId if needed,
+    // though we already fetched it earlier in the block.
+    // Let's use the complaint from the outer scope if possible, but
+    // it was fetched inside the transaction and not always assigned to a shared variable.
+    // In the CONSUMER path (line 83), 'complaint' has brandId.
+    // In the BRAND path (line 58), 'complaint' only has status.
+
+    // To be safe and clean, let's fetch the minimal complaint info needed for sentiment.
+    const sentimentComplaint = await tx.complaint.findUnique({
+      where: { id: params.complaintId },
+      select: { brandId: true },
+    });
+
+    if (sentimentComplaint) {
+      const queue = getSentimentQueue();
+      if (queue) {
+        queue
+          .add("followup-sentiment", {
+            brandId: sentimentComplaint.brandId,
+            complaintId: params.complaintId,
+            sourceType:
+              (user?.role as any) === "BRAND"
+                ? "BRAND_RESPONSE"
+                : "CONSUMER_MESSAGE",
+            sourceId: followup.id,
+            text: params.comment,
+          })
+          .catch((err) => {
+            logger.error("Failed to add followup to sentiment queue:", err);
+          });
       }
     }
 

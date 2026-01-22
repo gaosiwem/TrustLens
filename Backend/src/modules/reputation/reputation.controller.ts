@@ -1,10 +1,10 @@
 import type { Request, Response } from "express";
 import { recalcBrandScore } from "./reputation.service.js";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 export async function getBrandReputationController(
   req: Request,
-  res: Response
+  res: Response,
 ) {
   try {
     const brandId = req.params.brandId as string;
@@ -31,7 +31,7 @@ export async function getBrandReputationController(
 
 export async function recalculateBrandReputationController(
   req: Request,
-  res: Response
+  res: Response,
 ) {
   try {
     const brandId = req.params.brandId as string;

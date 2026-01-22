@@ -2,70 +2,143 @@
 
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import { useSession } from "next-auth/react";
 
-interface Notification {
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+export interface Notification {
   id: string;
-  userId: string;
+  userId?: string | null;
+  brandId?: string | null;
   type: string;
-  message: string;
+  title: string;
+  body: string;
+  link?: string | null;
   read: boolean;
   priority: string;
   createdAt: string;
+  metadata?: any;
 }
 
-export function useNotifications(userId?: string) {
+interface UseNotificationsProps {
+  userId?: string;
+  brandId?: string;
+  type?: "personal" | "brand" | "brand_manager" | "all";
+}
+
+export function useNotifications({
+  userId,
+  brandId,
+  type = "personal",
+}: UseNotificationsProps = {}) {
+  const { data: session } = useSession();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const getHeaders = useCallback(() => {
+    const token = (session as any)?.accessToken;
+    return {
+      Authorization: token ? `Bearer ${token}` : "",
+    };
+  }, [session]);
 
   const fetchNotifications = useCallback(
     async (reset = false) => {
-      if (!userId) return;
+      if (!userId && !brandId) return;
 
       setLoading(true);
       try {
-        const params = reset ? {} : cursor ? { cursor } : {};
-        const response = await axios.get("/api/notifications", { params });
+        const params: any = { type };
+        if (brandId) params.brandId = brandId;
+        if (!reset && cursor) params.cursor = cursor;
 
-        const newNotifications = response.data.notifications || [];
+        const response = await axios.get(`${API_URL}/notifications`, {
+          params,
+          headers: getHeaders(),
+        });
+
+        // Handle both cases: response.data as array OR response.data.notifications
+        const data = Array.isArray(response.data)
+          ? response.data
+          : response.data.notifications || [];
 
         if (reset) {
-          setNotifications(newNotifications);
+          setNotifications(data);
         } else {
-          setNotifications((prev) => [...prev, ...newNotifications]);
+          setNotifications((prev) => [...prev, ...data]);
         }
 
-        setCursor(response.data.nextCursor);
-        setHasMore(!!response.data.nextCursor);
+        const nextCursor = response.data.nextCursor;
+        setCursor(nextCursor);
+        setHasMore(!!nextCursor);
       } catch (error) {
         console.error("Failed to fetch notifications:", error);
       } finally {
         setLoading(false);
       }
     },
-    [userId, cursor]
+    [userId, brandId, type, cursor, getHeaders],
   );
 
-  const markAsRead = useCallback(async (notificationId: string) => {
+  const fetchUnreadCount = useCallback(async () => {
+    if (!userId && !brandId) return;
     try {
-      await axios.patch(`/api/notifications/${notificationId}/read`);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
+      const params: any = { type };
+      if (brandId) params.brandId = brandId;
+
+      const response = await axios.get(
+        `${API_URL}/notifications/unread-count`,
+        {
+          params,
+          headers: getHeaders(),
+        },
       );
+      setUnreadCount(response.data.count);
     } catch (error) {
-      console.error("Failed to mark notification as read:", error);
+      console.error("Failed to fetch unread count:", error);
     }
-  }, []);
+  }, [userId, brandId, type, getHeaders]);
+
+  const markAsRead = useCallback(
+    async (notificationId: string) => {
+      try {
+        await axios.patch(
+          `${API_URL}/notifications/${notificationId}/read`,
+          null,
+          {
+            headers: getHeaders(),
+          },
+        );
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+        );
+        // Optimistic update of unread count
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+        fetchUnreadCount();
+      } catch (error) {
+        console.error("Failed to mark notification as read:", error);
+      }
+    },
+    [fetchUnreadCount, getHeaders],
+  );
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await axios.patch("/api/notifications/mark-all-read");
+      const data: any = { type };
+      if (brandId) data.brandId = brandId;
+
+      await axios.patch(`${API_URL}/notifications/mark-all-read`, data, {
+        headers: getHeaders(),
+      });
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
     } catch (error) {
       console.error("Failed to mark all as read:", error);
     }
-  }, []);
+  }, [brandId, type, getHeaders]);
 
   const fetchMore = useCallback(() => {
     if (!loading && hasMore) {
@@ -76,16 +149,18 @@ export function useNotifications(userId?: string) {
   const refresh = useCallback(() => {
     setCursor(null);
     fetchNotifications(true);
-  }, [fetchNotifications]);
+    fetchUnreadCount();
+  }, [fetchNotifications, fetchUnreadCount]);
 
   useEffect(() => {
-    if (userId) {
-      fetchNotifications(true);
+    if (userId || brandId) {
+      refresh();
     }
-  }, [userId]);
+  }, [userId, brandId, type, refresh]);
 
   return {
     notifications,
+    unreadCount,
     loading,
     hasMore,
     fetchMore,

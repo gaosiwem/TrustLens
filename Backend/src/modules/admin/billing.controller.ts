@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import { logAdminAction } from "./audit.service.js";
 
 /**
@@ -46,13 +46,16 @@ export async function getMonthlyRevenue(req: any, res: Response) {
       orderBy: { issuedAt: "asc" },
     });
 
-    const grouped = invoices.reduce((acc: Record<string, number>, inv: any) => {
-      const monthYear = `${inv.issuedAt.getFullYear()}-${String(
-        inv.issuedAt.getMonth() + 1
-      ).padStart(2, "0")}`;
-      acc[monthYear] = (acc[monthYear] || 0) + inv.total;
-      return acc;
-    }, {} as Record<string, number>);
+    const grouped = invoices.reduce(
+      (acc: Record<string, number>, inv: any) => {
+        const monthYear = `${inv.issuedAt.getFullYear()}-${String(
+          inv.issuedAt.getMonth() + 1,
+        ).padStart(2, "0")}`;
+        acc[monthYear] = (acc[monthYear] || 0) + inv.total;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     await logAdminAction({
       adminId: req.user.userId,

@@ -11,7 +11,7 @@ const getHeaders = (token?: string) => ({
 });
 
 export const getVerificationStatus = async (
-  token: string
+  token: string,
 ): Promise<VerificationSubscription> => {
   const res = await fetch(`${API_URL}/verified/status`, {
     headers: getHeaders(token),
@@ -22,7 +22,7 @@ export const getVerificationStatus = async (
 
 export const subscribeToVerification = async (
   token: string,
-  planCode: string
+  planCode: string,
 ) => {
   const res = await fetch(`${API_URL}/subscriptions/checkout`, {
     method: "POST",
@@ -39,7 +39,7 @@ export const subscribeToVerification = async (
 export const uploadVerificationDocument = async (
   token: string,
   type: string,
-  file: File
+  file: File,
 ) => {
   const formData = new FormData();
   formData.append("type", type);
@@ -60,7 +60,7 @@ export const uploadVerificationDocument = async (
 };
 
 export const getVerificationDocuments = async (
-  token: string
+  token: string,
 ): Promise<VerificationDocument[]> => {
   const res = await fetch(`${API_URL}/verified/documents`, {
     headers: getHeaders(token),
@@ -73,6 +73,14 @@ export const getVerificationAnalytics = async (token: string): Promise<any> => {
   const res = await fetch(`${API_URL}/verified/analytics`, {
     headers: getHeaders(token),
   });
-  if (!res.ok) throw new Error("Failed to fetch verification analytics");
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    if (res.status === 400) {
+      throw new Error(
+        error.error || "Brand verification required for analytics",
+      );
+    }
+    throw new Error(error.error || "Failed to fetch verification analytics");
+  }
   return res.json();
 };

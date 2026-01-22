@@ -32,14 +32,14 @@ export function AnalyticsMetricCard({
   return (
     <div className="p-8 rounded-[2.5rem] bg-card border border-border flex flex-col gap-4 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all group">
       <div className="flex justify-between items-start">
-        <span className="text-[10px] font-black tracking-widest text-muted-foreground">
+        <span className="text-small font-bold text-muted-foreground">
           {title}
         </span>
         {delta !== undefined && (
           <div
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/50 text-[10px] font-black tracking-tighter",
-              getDeltaColor()
+              "flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/50 text-[10px] font-black tracking-widest uppercase",
+              getDeltaColor(),
             )}
           >
             <DeltaIcon className="w-3 h-3" />
@@ -49,11 +49,11 @@ export function AnalyticsMetricCard({
       </div>
 
       <div className="space-y-1">
-        <h3 className="text-4xl font-black italic tracking-tighter group-hover:text-primary transition-colors">
+        <h3 className="text-2xl font-black mt-1 group-hover:text-primary transition-colors tracking-tight">
           {value}
         </h3>
         {description && (
-          <p className="text-xs text-muted-foreground font-medium italic leading-relaxed">
+          <p className="text-small text-muted-foreground font-medium leading-relaxed">
             {description}
           </p>
         )}

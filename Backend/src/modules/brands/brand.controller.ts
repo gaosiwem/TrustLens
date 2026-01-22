@@ -1,5 +1,5 @@
 import { type Request, type Response } from "express";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import {
   createBrand,
   getBrands,
@@ -127,7 +127,7 @@ export async function deleteBrandController(req: Request, res: Response) {
 
 export async function toggleBrandVerificationController(
   req: Request,
-  res: Response
+  res: Response,
 ) {
   try {
     const { id } = req.params;
@@ -154,7 +154,7 @@ export async function searchBrandsController(req: Request, res: Response) {
 
 export async function getPublicBrandProfileController(
   req: Request,
-  res: Response
+  res: Response,
 ) {
   try {
     const { id } = req.params;
@@ -174,8 +174,8 @@ export async function getPublicBrandProfileController(
       req.query.replied === "true"
         ? true
         : req.query.replied === "false"
-        ? false
-        : undefined;
+          ? false
+          : undefined;
     const verified = req.query.verified === "true";
 
     const profile = await getBrandPublicProfile({
@@ -197,7 +197,7 @@ export async function getPublicBrandProfileController(
 }
 export async function getBrandTrustScoreController(
   req: Request,
-  res: Response
+  res: Response,
 ) {
   try {
     const { id } = req.params;
@@ -212,7 +212,7 @@ export async function getBrandTrustScoreController(
 
 export async function getBrandEnforcementsController(
   req: Request,
-  res: Response
+  res: Response,
 ) {
   try {
     const { id } = req.params;

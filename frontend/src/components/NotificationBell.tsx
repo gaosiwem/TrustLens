@@ -12,14 +12,17 @@ export default function NotificationBell({ userId }: NotificationBellProps) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const { socket } = useSocket(userId);
-  const { notifications, markAsRead, markAllAsRead, refresh } =
-    useNotifications(userId);
+  const {
+    notifications,
+    unreadCount: hookUnreadCount,
+    markAsRead,
+    markAllAsRead,
+    refresh,
+  } = useNotifications({ userId });
 
   useEffect(() => {
-    // Count unread notifications
-    const count = notifications.filter((n) => !n.read).length;
-    setUnreadCount(count);
-  }, [notifications]);
+    setUnreadCount(hookUnreadCount);
+  }, [hookUnreadCount]);
 
   useEffect(() => {
     if (!socket) return;
@@ -104,18 +107,23 @@ export default function NotificationBell({ userId }: NotificationBellProps) {
                             notification.priority === "critical"
                               ? "text-red-600"
                               : notification.priority === "warning"
-                              ? "text-yellow-600"
-                              : "text-blue-600"
+                                ? "text-yellow-600"
+                                : "text-blue-600"
                           }`}
                         >
                           {notification.priority === "critical"
                             ? "error"
                             : notification.priority === "warning"
-                            ? "warning"
-                            : "info"}
+                              ? "warning"
+                              : "info"}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm">{notification.message}</p>
+                          <p className="text-sm font-semibold">
+                            {notification.title}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {notification.body}
+                          </p>
                           <p className="text-xs text-muted-foreground mt-1">
                             {new Date(notification.createdAt).toLocaleString()}
                           </p>

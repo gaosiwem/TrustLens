@@ -25,6 +25,11 @@ export default function UserProfileMenu() {
         .slice(0, 2)
     : "U";
 
+  const settingsHref =
+    (session.user as any).role === "BRAND"
+      ? "/brand/settings"
+      : "/dashboard/settings";
+
   return (
     <>
       <Menu as="div" className="relative ml-3">
@@ -55,11 +60,25 @@ export default function UserProfileMenu() {
 
             <Menu.Item>
               {({ active }) => (
+                <Link
+                  href={settingsHref}
+                  className={classNames(
+                    active ? "bg-gray-100 dark:bg-gray-700 font-bold" : "",
+                    "block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 w-full text-left transition-colors",
+                  )}
+                >
+                  Settings
+                </Link>
+              )}
+            </Menu.Item>
+
+            <Menu.Item>
+              {({ active }) => (
                 <button
                   onClick={() => setIsEditOpen(true)}
                   className={classNames(
-                    active ? "bg-gray-100 dark:bg-gray-700" : "",
-                    "block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 w-full text-left"
+                    active ? "bg-gray-100 dark:bg-gray-700 font-bold" : "",
+                    "block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 w-full text-left transition-colors",
                   )}
                 >
                   Edit Profile
@@ -77,7 +96,7 @@ export default function UserProfileMenu() {
                   }}
                   className={classNames(
                     active ? "bg-gray-100 dark:bg-gray-700" : "",
-                    "block px-4 py-2 text-sm text-red-600 dark:text-red-400 w-full text-left"
+                    "block px-4 py-2 text-sm text-red-600 dark:text-red-400 w-full text-left",
                   )}
                 >
                   Sign Out

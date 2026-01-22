@@ -32,9 +32,13 @@ interface ComplaintItem {
 
 interface DashboardMetrics {
   totalComplaints: number;
+  totalComplaintsTrend: number;
   resolved: number;
+  resolvedTrend: number;
   pending: number;
+  pendingTrend: number;
   needsInfo: number;
+  needsInfoTrend: number;
 }
 
 export default function Dashboard() {
@@ -79,9 +83,13 @@ export default function Dashboard() {
       setMetrics(
         res.data.metrics || {
           totalComplaints: 0,
+          totalComplaintsTrend: 0,
           resolved: 0,
+          resolvedTrend: 0,
           pending: 0,
+          pendingTrend: 0,
           needsInfo: 0,
+          needsInfoTrend: 0,
         },
       );
 
@@ -221,28 +229,28 @@ export default function Dashboard() {
                 value={metrics.totalComplaints}
                 icon={Activity}
                 gradient="from-primary to-primary/80"
-                trend={5}
+                trend={metrics.totalComplaintsTrend}
               />
               <MetricCard
                 title="Resolved"
                 value={metrics.resolved}
                 icon={CheckCircle}
                 gradient="from-primary to-primary/80"
-                trend={12}
+                trend={metrics.resolvedTrend}
               />
               <MetricCard
                 title="Pending Review"
                 value={metrics.pending}
                 icon={Clock}
                 gradient="from-primary to-primary/80"
-                trend={-3}
+                trend={metrics.pendingTrend}
               />
               <MetricCard
                 title="Needs Attention"
                 value={metrics.needsInfo}
                 icon={AlertCircle}
                 gradient="from-primary to-primary/80"
-                trend={-8}
+                trend={metrics.needsInfoTrend}
               />
             </div>
           )
@@ -275,6 +283,7 @@ export default function Dashboard() {
               router.push(`/dashboard/complaints/${item.id}`)
             }
             searchPlaceholder="Search complaints by brand or description..."
+            useStandardPager={true}
           />
         </div>
       </div>

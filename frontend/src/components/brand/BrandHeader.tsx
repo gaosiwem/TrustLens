@@ -3,7 +3,9 @@
 import { useState } from "react";
 import DarkModeToggle from "../DarkModeToggle";
 import UserProfileMenu from "../UserProfileMenu";
-import { Menu, Bell } from "lucide-react";
+import { Menu } from "lucide-react";
+import { useSession } from "next-auth/react";
+import BrandBell from "./BrandBell";
 
 interface BrandHeaderProps {
   title: string;
@@ -16,6 +18,8 @@ export default function BrandHeader({
   subtitle,
   onMenuClick,
 }: BrandHeaderProps) {
+  const { data: session } = useSession();
+  const brandId = (session as any)?.user?.brandId;
   return (
     <header className="bg-card/80 backdrop-blur-md border-b border-border sticky top-0 z-40">
       <div className="flex items-center justify-between px-4 sm:px-6 py-4">
@@ -43,10 +47,9 @@ export default function BrandHeader({
 
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-1">
-            <button className="p-2.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-primary transition-all relative group">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full border-2 border-card" />
-            </button>
+            {(brandId || session?.user?.id) && (
+              <BrandBell brandId={brandId} userId={session?.user?.id} />
+            )}
           </div>
 
           <div className="h-8 w-px bg-border mx-1 hidden sm:block" />

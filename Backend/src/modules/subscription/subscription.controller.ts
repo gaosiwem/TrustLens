@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 import { billingService } from "../billing/billing.service.js";
 import { issuePaidInvoice } from "../billing/invoice.service.js";
 

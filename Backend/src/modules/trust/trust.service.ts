@@ -1,4 +1,4 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -16,41 +16,84 @@ export async function evaluateEntityTrust(
 ) {
   const client = tx || prisma;
   let score = 100;
+  let metadata: any = {};
 
   if (entityType === "BRAND") {
-    // Brand Trust Logic
-    // 1. Complaint resolution rate
-    // 2. Average sentiment
-    // 3. Response SLA
-    const [complaintsCount, resolvedCount] = await Promise.all([
+    // 1. Fetch Brand Data
+    const brand = await client.brand.findUnique({
+      where: { id: entityId },
+      include: {
+        subscription: { include: { plan: true } },
+      },
+    });
+
+    if (!brand) throw new Error("Brand not found");
+
+    // 2. Response Activity (Resolution Rate)
+    const [totalComplaints, resolvedComplaints] = await Promise.all([
       client.complaint.count({ where: { brandId: entityId } }),
       client.complaint.count({
         where: { brandId: entityId, status: "RESOLVED" },
       }),
     ]);
 
-    if (complaintsCount > 0) {
-      const resolutionRate = resolvedCount / complaintsCount;
-      // Penalty based on resolution rate
-      if (resolutionRate < 0.5) score -= 20;
-      if (resolutionRate < 0.3) score -= 20;
-    }
+    const resolutionRate =
+      totalComplaints > 0 ? (resolvedComplaints / totalComplaints) * 100 : 100;
+    const activityScore = Math.round(resolutionRate);
 
-    // 4. Authenticity check
-    const badAuthenticity = await client.responderAuthenticityScore.count({
+    // Activity Penalty
+    if (resolutionRate < 50) score -= 20;
+    if (resolutionRate < 30) score -= 20;
+
+    // 3. Authenticity Score
+    const totalResponses = await client.responderAuthenticityScore.count({
+      where: { businessUserId: brand.managerId || "" },
+    });
+    const highRiskResponses = await client.responderAuthenticityScore.count({
       where: {
-        businessUserId:
-          (
-            await client.brand.findUnique({
-              where: { id: entityId },
-              select: { managerId: true },
-            })
-          )?.managerId || "",
+        businessUserId: brand.managerId || "",
         riskBand: "HIGH",
       },
     });
-    score -= badAuthenticity * 5;
+
+    const authenticityScore =
+      totalResponses > 0
+        ? Math.round(
+            ((totalResponses - highRiskResponses) / totalResponses) * 100,
+          )
+        : 100;
+
+    // Authenticity Penalty
+    score -= highRiskResponses * 5;
+
+    // 4. Verification Tier
+    // Tier 1: Verified + Premium Plan (100%)
+    // Tier 2: Verified (80%)
+    // Tier 3: Unverified (60%)
+    let verificationScore = 60;
+    if (brand.isVerified) {
+      verificationScore = 80;
+      if (brand.subscription?.plan?.code?.includes("PREMIUM")) {
+        verificationScore = 100;
+      }
+    }
+
+    metadata = {
+      factors: {
+        authenticity: authenticityScore,
+        activity: activityScore,
+        verification: verificationScore,
+      },
+      calculation: {
+        totalComplaints,
+        resolvedComplaints,
+        highRiskResponses,
+        isVerified: brand.isVerified,
+        plan: brand.subscription?.plan?.name || "Free",
+      },
+    };
   } else {
+    // User Trust Logic (Simplified for metadata consistency)
     const [total, rejected] = await Promise.all([
       client.complaint.count({ where: { userId: entityId } }),
       client.complaint.count({
@@ -63,6 +106,13 @@ export async function evaluateEntityTrust(
       if (rejectionRate > 0.4) score -= 30;
       if (rejectionRate > 0.7) score -= 40;
     }
+
+    metadata = {
+      factors: {
+        validity:
+          total > 0 ? Math.round(((total - rejected) / total) * 100) : 100,
+      },
+    };
   }
 
   score = Math.max(0, Math.min(100, score));
@@ -74,6 +124,7 @@ export async function evaluateEntityTrust(
       entityId,
       score,
       riskLevel,
+      metadata,
     },
   });
 }

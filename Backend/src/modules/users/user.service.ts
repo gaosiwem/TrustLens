@@ -1,5 +1,5 @@
 import { type UserRole } from "@prisma/client";
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 export async function getUserProfile(userId: string) {
   return prisma.user.findUnique({
@@ -10,7 +10,7 @@ export async function getUserProfile(userId: string) {
 
 export async function updateUserProfile(
   userId: string,
-  data: { name?: string; role?: UserRole }
+  data: { name?: string; role?: UserRole },
 ) {
   return prisma.user.update({
     where: { id: userId },
@@ -21,7 +21,7 @@ export async function updateUserProfile(
 
 export async function adminUpdateUser(
   userId: string,
-  data: { name?: string; role?: UserRole }
+  data: { name?: string; role?: UserRole },
 ) {
   return prisma.user.update({
     where: { id: userId },
@@ -37,7 +37,7 @@ export async function getUsers(
     sortBy?: string;
     sortOrder?: "asc" | "desc";
     search?: string;
-  } = {}
+  } = {},
 ) {
   const {
     limit = 20,

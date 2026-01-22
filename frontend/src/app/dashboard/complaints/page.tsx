@@ -9,6 +9,7 @@ import UserHeader from "../../../components/dashboard/UserHeader";
 import BrandLogo from "../../../components/BrandLogo";
 import DataTable, { Column } from "../../admin/components/DataTable";
 import Link from "next/link";
+import StandardLoader from "../../../components/StandardLoader";
 
 interface ComplaintItem {
   id: string;
@@ -168,6 +169,7 @@ export default function MyComplaintsPage() {
               router.push(`/dashboard/complaints/${item.id}`)
             }
             searchPlaceholder="Search your complaints..."
+            useStandardPager={true}
           />
         </div>
       </div>

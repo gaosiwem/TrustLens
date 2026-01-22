@@ -10,6 +10,7 @@ import {
   BarChart4,
   Settings,
   Shield,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -30,9 +31,14 @@ const NAV_ITEMS = [
     icon: BarChart4,
   },
   {
+    name: "Sentiment Analytics",
+    href: "/brand/analytics/sentiment",
+    icon: LineChart,
+  },
+  {
     name: "Reputation AI",
     href: "/brand/reputation",
-    icon: LineChart,
+    icon: Shield,
   },
   {
     name: "Pricing & Plans",
@@ -85,7 +91,7 @@ export default function BrandSidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-border mt-auto">
+      <div className="p-4 border-t border-border mt-auto space-y-1">
         <Link
           href="/brand/settings"
           className={cn(
@@ -95,6 +101,16 @@ export default function BrandSidebar() {
         >
           <Settings className="w-5 h-5 text-muted-foreground" />
           <span className="text-sm">Settings</span>
+        </Link>
+        <Link
+          href="/help"
+          className={cn(
+            "flex items-center gap-3 py-3 px-4 rounded-xl transition-all hover:bg-muted text-muted-foreground hover:text-foreground font-medium",
+            pathname === "/help" && "bg-muted text-foreground",
+          )}
+        >
+          <HelpCircle className="w-5 h-5 text-muted-foreground" />
+          <span className="text-sm">Help & Support</span>
         </Link>
       </div>
     </aside>

@@ -1,4 +1,4 @@
-import prisma from "../../prismaClient.js";
+import prisma from "../../lib/prisma.js";
 
 export async function getSystemMetrics() {
   const [totalUsers, totalComplaints, activeUsers, totalBrands] =
