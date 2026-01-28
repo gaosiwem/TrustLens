@@ -213,6 +213,7 @@ function ComplaintsContent() {
                     brand={complaint.brand?.name || "Unknown Brand"}
                     brandLogoUrl={complaint.brand?.logoUrl}
                     isVerified={complaint.brand?.isVerified}
+                    verifiedUntil={complaint.brand?.subscription?.endsAt}
                     status={complaint.status}
                     description={complaint.description}
                     createdAt={complaint.createdAt}

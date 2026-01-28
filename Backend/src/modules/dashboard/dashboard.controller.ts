@@ -41,7 +41,8 @@ export async function dashboardController(req: Request, res: Response) {
           websiteUrl: true,
           supportEmail: true,
           supportPhone: true,
-          subscription: {
+          subscriptions: {
+            where: { status: "ACTIVE" },
             select: {
               status: true,
               endsAt: true,
@@ -59,15 +60,24 @@ export async function dashboardController(req: Request, res: Response) {
       const hasVerifiedBrand = brands.some((b) => b.isVerified);
 
       // Map to include verifiedUntil alias for frontend compatibility
-      const managedBrands = brands.map((b) => ({
-        ...b,
-        subscription: b.subscription
-          ? {
-              ...b.subscription,
-              verifiedUntil: b.subscription.endsAt,
-            }
-          : null,
-      }));
+      // Find the "best" subscription to display (prefer Verified > others)
+      const managedBrands = brands.map((b) => {
+        const verifiedSub = b.subscriptions.find((s) =>
+          s.plan.code.includes("VERIFIED"),
+        );
+        const activeSub = verifiedSub || b.subscriptions[0] || null;
+
+        return {
+          ...b,
+          subscription: activeSub
+            ? {
+                ...activeSub,
+                verifiedUntil: activeSub.endsAt,
+              }
+            : null,
+          subscriptions: b.subscriptions,
+        };
+      });
 
       if (managedBrands.length === 0) {
         // No managed brands, return empty dashboard but with claim info

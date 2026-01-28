@@ -90,7 +90,7 @@ export default function ManagerBrandProfilePage() {
           }
 
           if (session?.accessToken) {
-            const [enfRes, trustRes] = await Promise.all([
+            const results = await Promise.allSettled([
               axios.get(`${apiUrl}/brands/${id}/enforcements`, {
                 headers: { Authorization: `Bearer ${session.accessToken}` },
               }),
@@ -98,8 +98,23 @@ export default function ManagerBrandProfilePage() {
                 headers: { Authorization: `Bearer ${session.accessToken}` },
               }),
             ]);
-            setEnforcements(enfRes.data);
-            setTrustScoreDetails(trustRes.data);
+
+            const enfRes = results[0];
+            const trustRes = results[1];
+
+            if (enfRes.status === "fulfilled") {
+              setEnforcements(enfRes.value.data);
+            }
+
+            if (trustRes.status === "fulfilled") {
+              setTrustScoreDetails(trustRes.value.data);
+            } else {
+              console.warn(
+                "Trust score fetch failed (likely 404 for new brand)",
+                trustRes.reason,
+              );
+              setTrustScoreDetails(null);
+            }
           }
         }
       } catch (error) {

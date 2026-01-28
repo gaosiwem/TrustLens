@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+import { toast } from "sonner";
+
 export default function BrandSettings() {
   const { data: session } = useSession();
   const [userName, setUserName] = useState("");
@@ -51,7 +53,7 @@ export default function BrandSettings() {
     e.preventDefault();
     setLoading(true);
     setTimeout(() => {
-      alert("Brand settings updated successfully!");
+      toast.success("Brand settings updated successfully!");
       setLoading(false);
     }, 1500);
   };
@@ -167,56 +169,7 @@ export default function BrandSettings() {
       </TabsContent>
 
       <TabsContent value="notifications">
-        <Card>
-          <CardHeader>
-            <CardTitle>Brand Alert Preferences</CardTitle>
-            <CardDescription>
-              Configure how your team receives complaint and review alerts.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6 max-w-2xl">
-              {[
-                {
-                  title: "New Complaint Alerts",
-                  desc: "Get notified immediately when a consumer files a complaint.",
-                },
-                {
-                  title: "Resolution Reminders",
-                  desc: "Daily reminders for complaints pending for more than 48h.",
-                },
-                {
-                  title: "Sentiment Shift Alerts",
-                  desc: "Alerts when overall brand sentiment drops significantly.",
-                },
-                {
-                  title: "Weekly Performance Report",
-                  desc: "A condensed summary of resolution rates and trust scores.",
-                },
-              ].map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-4 rounded-xl hover:bg-muted/50 transition-colors"
-                >
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold">{item.title}</p>
-                    <p className="text-xs text-muted-foreground">{item.desc}</p>
-                  </div>
-                  <div
-                    className={`w-12 h-6 rounded-full relative cursor-pointer group ${idx < 2 ? "bg-primary/20" : "bg-muted border border-border"}`}
-                  >
-                    <div
-                      className={`absolute top-1 w-4 h-4 rounded-full transition-all shadow-sm ${idx < 2 ? "left-7 bg-primary" : "left-1 bg-muted-foreground/40"}`}
-                    />
-                  </div>
-                </div>
-              ))}
-              <Button onClick={() => alert("Preferences saved!")}>
-                Save Alert Settings
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <AlertPreferencesSettings session={session} />
       </TabsContent>
 
       <TabsContent value="security">
@@ -246,5 +199,170 @@ export default function BrandSettings() {
         </Card>
       </TabsContent>
     </Tabs>
+  );
+}
+
+function AlertPreferencesSettings({ session }: { session: any }) {
+  const [prefs, setPrefs] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Fetch preferences on mount (assuming brandId is available in session or can be derived)
+  // For this example, we'll try to find the brand ID from the session or fallback
+  const brandId = session?.user?.brandId; // Adjust based on actual session shape
+
+  useEffect(() => {
+    if (!brandId) return;
+
+    fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/brands/${brandId}/alert-preferences`,
+      {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`, // Ensure you have the token
+        },
+      },
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        setPrefs(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch prefs:", err);
+        setLoading(false);
+      });
+  }, [brandId, session]);
+
+  const togglePref = async (key: string) => {
+    if (!prefs) return;
+    const newVal = !prefs[key];
+    setPrefs({ ...prefs, [key]: newVal });
+
+    // Auto-save or wait for save button? Let's auto-save for better UX or use a save button.
+    // The previous design used a Save button. Let's stick to state update and manual save.
+  };
+
+  const handleSave = async () => {
+    if (!brandId || !prefs) return;
+    setSaving(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/brands/${brandId}/alert-preferences`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify(prefs),
+        },
+      );
+      if (res.ok) {
+        toast.success("Preferences saved successfully!");
+      } else {
+        toast.error("Failed to save preferences.");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Error saving preferences.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!brandId) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-destructive">
+            Your account is not linked to a brand.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6">Loading preferences...</CardContent>
+      </Card>
+    );
+  }
+
+  const items = [
+    {
+      key: "complaintCreated",
+      title: "New Complaint Alerts",
+      desc: "Get notified immediately when a consumer files a complaint.",
+    },
+    {
+      key: "statusChanges",
+      title: "Status Change Alerts",
+      desc: "Get notified when a complaint status changes (e.g. Responded, Resolved).",
+    },
+    {
+      key: "escalations",
+      title: "Escalation Alerts",
+      desc: "Get notified when a complaint is escalated to TrustLens staff.",
+    },
+    {
+      key: "newMessages",
+      title: "New Message Alerts",
+      desc: "Get notified when a consumer responds to a complaint.",
+    },
+    {
+      key: "evidenceAdded",
+      title: "Evidence Alerts",
+      desc: "Get notified when new evidence is attached to a complaint.",
+    },
+    {
+      key: "dailyDigestEnabled",
+      title: "Daily Digest",
+      desc: "Receive a daily summary of all activity.",
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Brand Alert Preferences</CardTitle>
+        <CardDescription>
+          Configure how your team receives complaint and review alerts.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6 max-w-2xl">
+          {items.map((item) => (
+            <div
+              key={item.key}
+              className="flex items-center justify-between p-4 rounded-xl hover:bg-muted/50 transition-colors"
+            >
+              <div className="space-y-1">
+                <p className="text-sm font-bold">{item.title}</p>
+                <p className="text-xs text-muted-foreground">{item.desc}</p>
+              </div>
+              <div
+                onClick={() => togglePref(item.key)}
+                className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${
+                  prefs[item.key]
+                    ? "bg-primary"
+                    : "bg-muted border border-border"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 rounded-full transition-all shadow-sm bg-white ${
+                    prefs[item.key] ? "left-7" : "left-1"
+                  }`}
+                />
+              </div>
+            </div>
+          ))}
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save Alert Settings"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

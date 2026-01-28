@@ -11,10 +11,14 @@ import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import BrandHeader from "../../../components/brand/BrandHeader";
 
-export default function NotificationCenter() {
+interface NotificationCenterProps {
+  id?: string;
+}
+
+export default function NotificationCenter({ id }: NotificationCenterProps) {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
-  const initialId = searchParams.get("id");
+  const initialId = id || searchParams.get("id");
 
   const [selectedId, setSelectedId] = useState<string | null>(initialId);
 
@@ -116,7 +120,7 @@ export default function NotificationCenter() {
                       </span>
                     </div>
                     <p
-                      className={`text-sm font-semibold truncate ${!notif.read ? "text-foreground" : "text-muted-foreground"}`}
+                      className={`text-sm font-semibold ${!notif.read ? "text-foreground" : "text-muted-foreground"}`}
                     >
                       {notif.title}
                     </p>

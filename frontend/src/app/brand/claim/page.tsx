@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import BrandClaimForm from "../../../components/BrandClaimForm";
 import Link from "next/link";
 import { Button } from "../../../components/ui/button";
 import { isPersonalEmail } from "../../../utils/email";
 import UserProfileMenu from "../../../components/UserProfileMenu";
+
+import { useRouter } from "next/navigation";
 
 // Helper: Local Badge component
 function Badge({ children, variant, className }: any) {
@@ -24,6 +27,14 @@ function Badge({ children, variant, className }: any) {
 
 export default function BrandClaimPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Redirect if user already manages a brand (Claim Approved)
+  useEffect(() => {
+    if (session?.user?.brandId) {
+      router.replace("/brand/verified");
+    }
+  }, [session, router]);
 
   if (status === "loading") {
     return (

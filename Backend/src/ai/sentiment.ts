@@ -38,6 +38,7 @@ export async function inferSentiment(text: string) {
         summary: { type: "string", minLength: 1, maxLength: 400 },
       },
       required: [
+        "language",
         "label",
         "score",
         "intensity",

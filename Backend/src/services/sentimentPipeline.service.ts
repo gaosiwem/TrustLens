@@ -10,10 +10,12 @@ type IngestArgs = {
     | "COMPLAINT"
     | "BRAND_RESPONSE"
     | "CONSUMER_MESSAGE"
-    | "SYSTEM_NOTE";
+    | "SYSTEM_NOTE"
+    | "RATING";
   sourceId?: string | null;
   text: string;
   languageHint?: string | null;
+  stars?: number | null;
 };
 
 function startOfDayUtc(d: Date) {
@@ -36,7 +38,7 @@ export async function ingestSentiment(args: IngestArgs) {
     where: {
       brandId: args.brandId,
       complaintId: args.complaintId ?? null,
-      sourceType: args.sourceType,
+      sourceType: args.sourceType as any,
       sourceId: args.sourceId ?? null,
       textHash,
     },
@@ -50,10 +52,11 @@ export async function ingestSentiment(args: IngestArgs) {
     data: {
       brandId: args.brandId,
       complaintId: args.complaintId ?? null,
-      sourceType: args.sourceType,
+      sourceType: args.sourceType as any,
       sourceId: args.sourceId ?? null,
       textHash,
       language: sentiment.data.language ?? args.languageHint ?? null,
+      stars: args.stars as any,
       label: sentiment.data.label,
       score: sentiment.data.score,
       intensity: sentiment.data.intensity,
@@ -97,16 +100,27 @@ export async function ingestSentiment(args: IngestArgs) {
       brandId: args.brandId,
       createdAt: { gte: day, lt: new Date(day.getTime() + 86400000) },
     },
-    select: { score: true, urgency: true, label: true, topics: true },
+    select: {
+      score: true,
+      urgency: true,
+      label: true,
+      topics: true,
+      stars: true,
+    } as any,
   });
 
   const total = dayEvents.length;
   const avgScore = total
-    ? dayEvents.reduce((a, e) => a + e.score, 0) / total
+    ? dayEvents.reduce((a, e) => a + (e.score ?? 0), 0) / total
     : 0;
   const avgUrgency = total
-    ? dayEvents.reduce((a, e) => a + e.urgency, 0) / total
+    ? dayEvents.reduce((a, e) => a + (e.urgency ?? 0), 0) / total
     : 0;
+
+  const ratedEvents = dayEvents.filter((e) => e.stars !== null);
+  const avgStars = ratedEvents.length
+    ? ratedEvents.reduce((a, e) => a + (e.stars || 0), 0) / ratedEvents.length
+    : null;
 
   const positive = dayEvents.filter(
     (e) => e.label === "POSITIVE" || e.label === "VERY_POSITIVE",
@@ -135,21 +149,59 @@ export async function ingestSentiment(args: IngestArgs) {
       count: total,
       avgScore,
       avgUrgency,
+      avgStars: avgStars as any,
       positivePct: pct(positive, total),
       negativePct: pct(negative, total),
       neutralPct: pct(neutral, total),
       topTopics,
-    },
+    } as any,
     update: {
       count: total,
       avgScore,
       avgUrgency,
+      avgStars: avgStars as any,
       positivePct: pct(positive, total),
       negativePct: pct(negative, total),
       neutralPct: pct(neutral, total),
       topTopics,
-    },
+    } as any,
   });
+
+  // SPRINT 30: AI-Driven Alerts (Pro Feature)
+  try {
+    if (created.label === "VERY_NEGATIVE") {
+      await import("../modules/notifications/notification.service.js").then(
+        (m) =>
+          m.notifyBrand({
+            brandId: args.brandId,
+            type: "NEGATIVE_SENTIMENT",
+            title: "Critical Negative Sentiment Detected",
+            body: `AI has detected a VERY_NEGATIVE sentiment event. Score: ${(
+              created.score * 100
+            ).toFixed(0)}%. Immediate attention recommended.`,
+            link: args.complaintId
+              ? (`/brand/complaints/${args.complaintId}` as string)
+              : undefined,
+          }),
+      );
+    } else if (created.urgency > 80) {
+      // Avoid double alerting if already flagged as very negative
+      await import("../modules/notifications/notification.service.js").then(
+        (m) =>
+          m.notifyBrand({
+            brandId: args.brandId,
+            type: "URGENCY_ALERT",
+            title: "High Urgency Feedback Detected",
+            body: `AI has flagged a high urgency event (${created.urgency}%). This requires rapid resolution.`,
+            link: args.complaintId
+              ? (`/brand/complaints/${args.complaintId}` as string)
+              : undefined,
+          }),
+      );
+    }
+  } catch (err) {
+    console.error("Failed to trigger AI alert:", err);
+  }
 
   return created;
 }

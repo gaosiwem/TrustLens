@@ -21,6 +21,7 @@ import DataTable, { Column } from "../admin/components/DataTable";
 interface ComplaintItem {
   id: string;
   brand: {
+    id: string; // NEW
     name: string;
     logoUrl?: string;
     isVerified?: boolean;
@@ -138,20 +139,46 @@ export default function Dashboard() {
       header: "Brand",
       accessor: (item) => (
         <div className="relative flex items-center gap-3 p-2 min-h-16">
-          <BrandLogo
-            brandName={item.brand?.name || "Unknown"}
-            brandLogoUrl={item.brand?.logoUrl}
-            className="w-10 h-10 rounded-lg object-contain bg-white border border-border shadow-sm"
-          />
+          <Link
+            href={`/brand/${item.brand?.id}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <BrandLogo
+              brandName={item.brand?.name || "Unknown"}
+              brandLogoUrl={item.brand?.logoUrl}
+              className="w-10 h-10 rounded-lg object-contain bg-white border border-border shadow-sm cursor-pointer"
+            />
+          </Link>
           <div className="flex flex-col min-w-0">
-            <span className="font-bold text-sm truncate">
+            <Link
+              href={`/brand/${item.brand?.id}`}
+              className="font-bold text-sm truncate hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
               {item.brand?.name || "Unknown"}
-            </span>
+            </Link>
           </div>
 
           {/* Verification Status Badge in top right */}
           {item.brand?.isVerified && (
-            <div className="absolute top-1 right-1 flex items-center justify-center bg-primary/10 text-primary p-1 rounded-full border border-primary/20 scale-90 origin-top-right">
+            <div
+              className="absolute top-1 right-1 flex items-center justify-center bg-primary/10 text-primary p-1 rounded-full border border-primary/20 scale-90 origin-top-right cursor-pointer hover:bg-primary/20 transition-colors"
+              onClick={async (e) => {
+                e.stopPropagation();
+                if (item.brand?.id) {
+                  try {
+                    await fetch(
+                      `${process.env.NEXT_PUBLIC_API_URL}/analytics/brands/${item.brand.id}/badge-click`,
+                      { method: "POST" },
+                    );
+                    window.location.href = "/verified-explained";
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }
+              }}
+              title="Verified - Click to learn more"
+            >
               <BadgeCheck className="w-4 h-4 fill-primary text-white" />
             </div>
           )}

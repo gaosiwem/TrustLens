@@ -2,19 +2,9 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function simulatePayment() {
-  // Get the pending verification request
-  const request = await prisma.verifiedRequest.findFirst({
-    where: { status: "PENDING" },
-    include: { brand: true },
-  });
-
-  if (!request) {
-    console.log("No pending verification request found");
-    return;
-  }
-
-  const brandId = request.brandId;
-  const userId = request.userId;
+  // Hardcoded for debugging user issue
+  const brandId = "fd766cd1-7196-4114-9438-ba1ec7c4ad66";
+  const userId = "dfa6c5af-f491-426a-b66f-b52638525a42";
 
   // Ask which plan to simulate
   const planCode = "BASIC_VERIFIED"; // Change to PREMIUM_VERIFIED if needed
@@ -28,7 +18,7 @@ async function simulatePayment() {
     return;
   }
 
-  console.log(`Simulating payment for brand: ${request.brand.name}`);
+  console.log(`Simulating payment for brand: Mit Mak Motors`);
   console.log(`Plan: ${plan.name} (${planCode})`);
   console.log(`Price: R${plan.monthlyPrice}`);
 
@@ -37,29 +27,39 @@ async function simulatePayment() {
   const endsAt = new Date();
   endsAt.setDate(endsAt.getDate() + durationDays);
 
-  // Create BrandSubscription
-  const subscription = await prisma.brandSubscription.upsert({
-    where: { brandId },
-    update: {
-      planId: plan.id,
-      status: "ACTIVE",
-      startedAt: new Date(),
-      endsAt,
-      gatewayRef: "TEST_PAYMENT_" + Date.now(),
-    },
-    create: {
-      brandId,
-      planId: plan.id,
-      status: "ACTIVE",
-      startedAt: new Date(),
-      endsAt,
-      gatewayRef: "TEST_PAYMENT_" + Date.now(),
-    },
+  // Find existing subscription for this brand + plan combination
+  const existingSub = await prisma.brandSubscription.findFirst({
+    where: { brandId, planId: plan.id },
   });
+
+  let subscription;
+  if (existingSub) {
+    subscription = await prisma.brandSubscription.update({
+      where: { id: existingSub.id },
+      data: {
+        status: "ACTIVE",
+        startedAt: new Date(),
+        endsAt,
+        gatewayRef: "TEST_PAYMENT_" + Date.now(),
+      },
+    });
+  } else {
+    subscription = await prisma.brandSubscription.create({
+      data: {
+        brandId,
+        planId: plan.id,
+        status: "ACTIVE",
+        startedAt: new Date(),
+        endsAt,
+        gatewayRef: "TEST_PAYMENT_" + Date.now(),
+      },
+    });
+  }
 
   console.log(`✅ Created BrandSubscription: ${subscription.id}`);
 
   // Create VerifiedSubscription if it's a verified plan
+  /*
   if (isVerifiedPlan) {
     const verifiedSub = await prisma.verifiedSubscription.create({
       data: {
@@ -76,6 +76,7 @@ async function simulatePayment() {
 
     console.log(`✅ Created VerifiedSubscription: ${verifiedSub.id}`);
   }
+  */
 
   // Create payment transaction
   const transaction = await prisma.paymentTransaction.create({

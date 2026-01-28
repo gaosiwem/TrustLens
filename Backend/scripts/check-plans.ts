@@ -1,20 +1,12 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/prisma.js";
 
-async function checkPlans() {
-  const plans = await prisma.subscriptionPlan.findMany({
-    orderBy: { monthlyPrice: "asc" },
-  });
-
-  console.log("Available Subscription Plans:\n");
-  plans.forEach((plan) => {
-    console.log(`Code: ${plan.code}`);
-    console.log(`Name: ${plan.name}`);
-    console.log(`Price: R${plan.monthlyPrice}`);
-    console.log(`---`);
-  });
+async function main() {
+  const plans = await prisma.subscriptionPlan.findMany();
+  console.log("Subscription Plans:", JSON.stringify(plans, null, 2));
 }
 
-checkPlans()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+main()
+  .catch((e) => console.error(e))
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

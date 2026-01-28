@@ -1,1 +1,295 @@
-"use client"; import { useState, useEffect } from "react"; import { useForm } from "react-hook-form"; import Link from "next/link"; import DarkModeToggle from "../../components/DarkModeToggle"; import MetricsPanel from "../../components/MetricsPanel"; import UserProfileMenu from "../../components/UserProfileMenu"; export default function AIInsights() { const [complaints, setComplaints] = useState<any[]>([]); const [selectedComplaint, setSelectedComplaint] = useState<any>(null); const [followups, setFollowups] = useState<any[]>([]); const { register, handleSubmit, reset } = useForm(); useEffect(() => { // Mock data for Sprint 11 const mockComplaints = [ { id: "1", brand: "Acme Corp", description: "Late delivery", status: "RESOLVED", aiSummary: "Customer experienced 3-day delay. Recommend expedited shipping credit.", receiptFiles: [], }, { id: "2", brand: "Tech Solutions", description: "Wrong item shipped", status: "PENDING", aiSummary: "Item mismatch detected. Initiate return and replacement process.", receiptFiles: ["receipt1.pdf"], }, { id: "3", brand: "Retail Mart", description: "Refund not received", status: "ESCALATED", aiSummary: "Payment processing delay of 7+ days. Escalate to finance team.", receiptFiles: [], }, ]; setComplaints(mockComplaints); }, []); useEffect(() => { if (selectedComplaint) { // Mock followups const mockFollowups = [ { id: "f1", userId: "user1", comment: "I've contacted the brand and waiting for their response.", createdAt: new Date(Date.now() - 86400000).toISOString(), user: { email: "user@example.com", name: "John Doe" }, }, ]; setFollowups(mockFollowups); } }, [selectedComplaint]); const onSubmitFollowup = async (data: any) => { console.log("Followup submitted:", data); // In production: await axios.post('/api/followups', { complaintId: selectedComplaint.id, comment: data.comment }) const newFollowup = { id: Date.now().toString(), userId: "current-user", comment: data.comment, createdAt: new Date().toISOString(), user: { email: "current@user.com", name: "Current User" }, }; setFollowups([...followups, newFollowup]); reset(); }; return ( <div className="flex min-h-screen flex-col lg:flex-row"> {/* Side Drawer */} <aside className="hidden md:flex w-64 flex-col bg-card border-r border-border p-4"> <Link href="/"> <h2 className="text-xl font-bold mb-6 px-3 cursor-pointer hover:text-primary transition-all"> TrustLens </h2> </Link> <nav className="flex flex-col gap-2"> <Link href="/dashboard" className="px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors" > Dashboard </Link> <Link href="/complaints" className="px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors" > Complaints </Link> <Link href="/ai-insights" className="px-3 py-2 rounded-lg bg-primary/10 text-primary font-medium transition-colors" > AI Insights </Link> <Link href="/settings" className="px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors" > Settings </Link> </nav> </aside> {/* Main Content */} <main className="flex-1 flex flex-col overflow-hidden"> {/* Top Navigation */} <header className="w-full bg-card shadow-sm px-6 py-4 flex items-center justify-between border-b border-border"> <div className="flex items-center gap-4"> <Link href="/" className="flex items-center gap-2"> <span className="material-symbols-outlined text-primary"> shield </span> <span className="font-bold text-lg hidden sm:inline"> TrustLens </span> </Link> <h1 className="text-xl font-bold border-l border-border pl-4"> AI Insights Dashboard </h1> </div> <div className="flex items-center gap-3"> <DarkModeToggle /> <UserProfileMenu /> </div> </header> {/* Content */} <div className="flex-1 overflow-y-auto p-6 space-y-6"> {/* Summary Cards */} <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"> <div className="bg-card rounded-xl shadow-sm p-4 border border-border"> <span className="text-xs text-muted-foreground font-medium"> Total Complaints </span> <p className="text-2xl font-bold mt-1">1,245</p> </div> <div className="bg-card rounded-xl shadow-sm p-4 border border-border"> <span className="text-xs text-muted-foreground font-medium"> Resolved </span> <p className="text-2xl font-bold mt-1">98%</p> </div> <div className="bg-card rounded-xl shadow-sm p-4 border border-border"> <span className="text-xs text-muted-foreground font-medium"> Pending </span> <p className="text-2xl font-bold mt-1">17%</p> </div> <div className="bg-card rounded-xl shadow-sm p-4 border border-border"> <span className="text-xs text-muted-foreground font-medium"> AI Suggested Fixes </span> <p className="text-2xl font-bold mt-1">532</p> </div> </div> {/* Complaints List */} <section className="bg-card p-6 rounded-2xl shadow-sm border border-border"> <h2 className="font-bold text-lg mb-4">Recent Complaints</h2> <div className="flex flex-col gap-3 max-h-96 overflow-y-auto"> {complaints.map((complaint) => ( <div key={complaint.id} onClick={() => setSelectedComplaint(complaint)} className={`flex justify-between items-center p-4 rounded-xl border transition cursor-pointer ${ selectedComplaint?.id === complaint.id ? "border-primary bg-primary/10" : "border-border hover:bg-muted" }`} > <div className="flex flex-col flex-1 min-w-0"> <span className="font-semibold truncate"> Brand: {complaint.brand} </span> <span className="text-xs text-muted-foreground truncate"> {complaint.description} </span> </div> <span className={`text-xs font-medium px-2 py-1 rounded-full ml-3 ${ complaint.status === "RESOLVED" ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary" : complaint.status === "ESCALATED" ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" }`} > {complaint.status} </span> </div> ))} </div> </section> {/* Complaint Detail */} {selectedComplaint && ( <div className="bg-card p-6 rounded-2xl shadow-sm border border-border space-y-6"> <div> <h2 className="font-bold text-lg mb-4">Complaint Details</h2> <div className="space-y-2"> <div> <span className="text-xs text-muted-foreground font-medium"> Brand </span> <p className="font-semibold">{selectedComplaint.brand}</p> </div> <div> <span className="text-xs text-muted-foreground font-medium"> Description </span> <p className="text-sm">{selectedComplaint.description}</p> </div> <div> <span className="text-xs text-muted-foreground font-medium"> Status </span> <p className="text-sm">{selectedComplaint.status}</p> </div> {selectedComplaint.aiSummary && ( <div className="mt-4 p-4 rounded-xl bg-primary/10 border border-primary/30"> <span className="text-xs text-primary font-semibold flex items-center gap-2 mb-2"> <span className="material-symbols-outlined text-sm"> auto_awesome </span> AI Suggestion </span> <p className="text-sm">{selectedComplaint.aiSummary}</p> </div> )} </div> </div> {/* Followups */} <div> <h3 className="font-semibold mb-3"> Follow-ups ({followups.length}) </h3> <div className="space-y-3 mb-4"> {followups.map((followup) => ( <div key={followup.id} className="p-3 rounded-xl bg-muted border border-border" > <div className="flex items-start justify-between mb-1"> <span className="text-xs font-medium"> {followup.user.name || followup.user.email} </span> <span className="text-xs text-muted-foreground"> {new Date(followup.createdAt).toLocaleDateString()} </span> </div> <p className="text-sm">{followup.comment}</p> </div> ))} </div> {/* Add Followup Form */} <form onSubmit={handleSubmit(onSubmitFollowup)} className="space-y-3" > <label htmlFor="comment" className="text-sm font-medium block" > Add Comment / Follow-up </label> <textarea id="comment" {...register("comment", { required: true })} placeholder="Type your follow-up comment here..." className="w-full h-24 p-3 rounded-xl border border-border bg-background resize-none focus:ring-2 focus:ring-primary outline-none" /> <button type="submit" className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition" > Submit Follow-up </button> </form> </div> </div> )} </div> </main> </div> ); } 
+"use client";
+
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import Link from "next/link";
+import DarkModeToggle from "../../components/DarkModeToggle";
+import MetricsPanel from "../../components/MetricsPanel";
+import UserProfileMenu from "../../components/UserProfileMenu";
+
+export default function AIInsights() {
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+  const [followups, setFollowups] = useState<any[]>([]);
+  const { register, handleSubmit, reset } = useForm();
+
+  useEffect(() => {
+    // Mock data for Sprint 11
+    const mockComplaints = [
+      {
+        id: "1",
+        brand: "Acme Corp",
+        description: "Late delivery",
+        status: "RESOLVED",
+        aiSummary:
+          "Customer experienced 3-day delay. Recommend expedited shipping credit.",
+        receiptFiles: [],
+      },
+      {
+        id: "2",
+        brand: "Tech Solutions",
+        description: "Wrong item shipped",
+        status: "PENDING",
+        aiSummary:
+          "Item mismatch detected. Initiate return and replacement process.",
+        receiptFiles: ["receipt1.pdf"],
+      },
+      {
+        id: "3",
+        brand: "Retail Mart",
+        description: "Refund not received",
+        status: "ESCALATED",
+        aiSummary:
+          "Payment processing delay of 7+ days. Escalate to finance team.",
+        receiptFiles: [],
+      },
+    ];
+    setComplaints(mockComplaints);
+  }, []);
+
+  useEffect(() => {
+    if (selectedComplaint) {
+      // Mock followups
+      const mockFollowups = [
+        {
+          id: "f1",
+          userId: "user1",
+          comment: "I've contacted the brand and waiting for their response.",
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          user: { email: "user@example.com", name: "John Doe" },
+        },
+      ];
+      setFollowups(mockFollowups);
+    }
+  }, [selectedComplaint]);
+
+  const onSubmitFollowup = async (data: any) => {
+    console.log("Followup submitted:", data);
+    // In production: await axios.post('/api/followups', { complaintId: selectedComplaint.id, comment: data.comment })
+    const newFollowup = {
+      id: Date.now().toString(),
+      userId: "current-user",
+      comment: data.comment,
+      createdAt: new Date().toISOString(),
+      user: { email: "current@user.com", name: "Current User" },
+    };
+    setFollowups([...followups, newFollowup]);
+    reset();
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col lg:flex-row">
+      {/* Side Drawer */}
+      <aside className="hidden md:flex w-64 flex-col bg-card border-r border-border p-4">
+        <Link href="/">
+          <h2 className="text-xl font-bold mb-6 px-3 cursor-pointer hover:text-primary transition-all">
+            TrustLens
+          </h2>
+        </Link>
+        <nav className="flex flex-col gap-2">
+          <Link
+            href="/dashboard"
+            className="px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors"
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/complaints"
+            className="px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors"
+          >
+            Complaints
+          </Link>
+          <Link
+            href="/ai-insights"
+            className="px-3 py-2 rounded-lg bg-primary/10 text-primary font-medium transition-colors"
+          >
+            AI Insights
+          </Link>
+          <Link
+            href="/settings"
+            className="px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors"
+          >
+            Settings
+          </Link>
+        </nav>
+      </aside>
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Navigation */}
+        <header className="w-full bg-card shadow-sm px-6 py-4 flex items-center justify-between border-b border-border">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">
+                shield
+              </span>
+              <span className="font-bold text-lg hidden sm:inline">
+                TrustLens
+              </span>
+            </Link>
+            <h1 className="text-xl font-bold border-l border-border pl-4">
+              AI Insights Dashboard
+            </h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <DarkModeToggle />
+            <UserProfileMenu />
+          </div>
+        </header>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-card rounded-xl shadow-sm p-4 border border-border">
+              <span className="text-xs text-muted-foreground font-medium">
+                Total Complaints
+              </span>
+              <p className="text-2xl font-bold mt-1">1,245</p>
+            </div>
+            <div className="bg-card rounded-xl shadow-sm p-4 border border-border">
+              <span className="text-xs text-muted-foreground font-medium">
+                Resolved
+              </span>
+              <p className="text-2xl font-bold mt-1">98%</p>
+            </div>
+            <div className="bg-card rounded-xl shadow-sm p-4 border border-border">
+              <span className="text-xs text-muted-foreground font-medium">
+                Pending
+              </span>
+              <p className="text-2xl font-bold mt-1">17%</p>
+            </div>
+            <div className="bg-card rounded-xl shadow-sm p-4 border border-border">
+              <span className="text-xs text-muted-foreground font-medium">
+                AI Suggested Fixes
+              </span>
+              <p className="text-2xl font-bold mt-1">532</p>
+            </div>
+          </div>
+          {/* Complaints List */}
+          <section className="bg-card p-6 rounded-2xl shadow-sm border border-border">
+            <h2 className="font-bold text-lg mb-4">Recent Complaints</h2>
+            <div className="flex flex-col gap-3 max-h-96 overflow-y-auto">
+              {complaints.map((complaint) => (
+                <div
+                  key={complaint.id}
+                  onClick={() => setSelectedComplaint(complaint)}
+                  className={`flex justify-between items-center p-4 rounded-xl border transition cursor-pointer ${
+                    selectedComplaint?.id === complaint.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:bg-muted"
+                  }`}
+                >
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className="font-semibold truncate">
+                      Brand: {complaint.brand}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate">
+                      {complaint.description}
+                    </span>
+                  </div>
+                  <span
+                    className={`text-xs font-medium px-2 py-1 rounded-full ml-3 ${
+                      complaint.status === "RESOLVED"
+                        ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary"
+                        : complaint.status === "ESCALATED"
+                          ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                    }`}
+                  >
+                    {complaint.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+          {/* Complaint Detail */}
+          {selectedComplaint && (
+            <div className="bg-card p-6 rounded-2xl shadow-sm border border-border space-y-6">
+              <div>
+                <h2 className="font-bold text-lg mb-4">Complaint Details</h2>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Brand
+                    </span>
+                    <p className="font-semibold">{selectedComplaint.brand}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Description
+                    </span>
+                    <p className="text-sm">{selectedComplaint.description}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Status
+                    </span>
+                    <p className="text-sm">{selectedComplaint.status}</p>
+                  </div>
+                  {selectedComplaint.aiSummary && (
+                    <div className="mt-4 p-4 rounded-xl bg-primary/10 border border-primary/30">
+                      <span className="text-xs text-primary font-semibold flex items-center gap-2 mb-2">
+                        <span className="material-symbols-outlined text-sm">
+                          auto_awesome
+                        </span>
+                        AI Suggestion
+                      </span>
+                      <p className="text-sm">{selectedComplaint.aiSummary}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* Followups */}
+              <div>
+                <h3 className="font-semibold mb-3">
+                  Follow-ups ({followups.length})
+                </h3>
+                <div className="space-y-3 mb-4">
+                  {followups.map((followup) => (
+                    <div
+                      key={followup.id}
+                      className="p-3 rounded-xl bg-muted border border-border"
+                    >
+                      <div className="flex items-start justify-between mb-1">
+                        <span className="text-xs font-medium">
+                          {followup.user.name || followup.user.email}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(followup.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm">{followup.comment}</p>
+                    </div>
+                  ))}
+                </div>
+                {/* Add Followup Form */}
+                <form
+                  onSubmit={handleSubmit(onSubmitFollowup)}
+                  className="space-y-3"
+                >
+                  <label
+                    htmlFor="comment"
+                    className="text-sm font-medium block"
+                  >
+                    Add Comment / Follow-up
+                  </label>
+                  <textarea
+                    id="comment"
+                    {...register("comment", { required: true })}
+                    placeholder="Type your follow-up comment here..."
+                    className="w-full h-24 p-3 rounded-xl border border-border bg-background resize-none focus:ring-2 focus:ring-primary outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition"
+                  >
+                    Submit Follow-up
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}

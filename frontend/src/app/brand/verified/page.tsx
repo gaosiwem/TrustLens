@@ -23,6 +23,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "../../../components/ui/dialog";
 import { cn } from "../../../lib/utils";
 import BrandHeader from "../../../components/brand/BrandHeader";
 import { MetricCard } from "../../../components/brand/MetricCard";
@@ -87,7 +95,29 @@ export default function VerificationDashboard() {
     return <StandardLoader fullPage />;
   }
 
+  const isExpired =
+    subscription?.status === "expired" ||
+    (subscription?.verifiedUntil &&
+      new Date(subscription.verifiedUntil) < new Date());
+
+  const isApproved =
+    subscription?.status === "approved" &&
+    !isExpired &&
+    !!subscription?.verifiedUntil;
+
+  const isPending = subscription?.status === "pending";
+  const isMoreInfo = subscription?.status === "more_info";
+  const hasPaid =
+    subscription?.status === "paid_pending" ||
+    isApproved ||
+    isPending ||
+    isMoreInfo;
+
   const getStatusLabel = () => {
+    if (isExpired) return "Verification Expired";
+    if (subscription?.status === "approved" && !subscription?.verifiedUntil)
+      return "Payment Required";
+
     switch (subscription?.status) {
       case "paid_pending":
         return "Paid - Pending Review";
@@ -109,15 +139,53 @@ export default function VerificationDashboard() {
   };
 
   const statusLabel = getStatusLabel();
-  const isApproved = subscription?.status === "approved";
-  const isExpired = subscription?.status === "expired";
-  const isPending = subscription?.status === "pending";
-  const isMoreInfo = subscription?.status === "more_info";
-  const hasPaid =
-    subscription?.status === "paid_pending" ||
-    isApproved ||
-    isPending ||
-    isMoreInfo;
+  const isPaymentRequired = statusLabel === "Payment Required";
+
+  const showUploadHeader =
+    hasPaid && (!documents.length || subscription?.status === "more_info");
+
+  // New User State: No Subscription AND No Prior Application Status
+  // Only show landing page if they truly have no history
+  const isNewUser =
+    (!subscription || subscription.status === "not_started") &&
+    !hasPaid &&
+    !isExpired;
+
+  if (isNewUser) {
+    return (
+      <>
+        <BrandHeader
+          title="Verification Center"
+          subtitle="Identity Verification & Trust Authority"
+          onMenuClick={() => setMobileNavOpen(true)}
+        />
+        <div className="p-4 sm:p-8 flex flex-col items-center justify-center min-h-[60vh] text-center max-w-2xl mx-auto space-y-8">
+          <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <ShieldCheck className="w-12 h-12 text-primary" />
+          </div>
+          <h1 className="text-3xl font-black tracking-tight leading-tight">
+            Become a <span className="text-primary italic">Verified Brand</span>
+          </h1>
+          <p className="text-lg text-muted-foreground leading-relaxed">
+            Unlock the verified badge, premium analytics, and trusted status.
+            Our streamlined process combines subscription and identity
+            verification in one step.
+          </p>
+
+          <div className="grid gap-4 w-full max-w-md">
+            <Link href="/brand/verified/subscribe">
+              <Button className="w-full h-14 text-lg font-bold shadow-xl shadow-primary/20 rounded-2xl">
+                Start Verification
+              </Button>
+            </Link>
+            <p className="text-xs text-muted-foreground">
+              Includes annual re-validation • Cancel anytime
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -132,13 +200,17 @@ export default function VerificationDashboard() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h2 className="heading-2 font-bold flex items-center gap-3">
-              Status Overview
+              {showUploadHeader
+                ? "Complete Your Verification"
+                : "Status Overview"}
               {isApproved && subscription?.verifiedUntil && (
                 <VerifiedBadge verifiedUntil={subscription.verifiedUntil} />
               )}
             </h2>
             <p className="text-small text-muted-foreground mt-1">
-              Monitor your verification status and subscription details
+              {showUploadHeader
+                ? "Upload the required documents to finalize your application."
+                : "Monitor your verification status and subscription details"}
             </p>
           </div>
 
@@ -153,10 +225,46 @@ export default function VerificationDashboard() {
             </Link>
             {!hasPaid && !isExpired && (
               <Link href="/brand/verified/subscribe">
+                {/* Fallback if logic slips into this state */}
                 <Button className="btn-base btn-primary h-12 shadow-xl shadow-primary/20">
-                  Purchase Subscription
+                  {isPaymentRequired
+                    ? "Complete Payment"
+                    : "Purchase Subscription"}
                 </Button>
               </Link>
+            )}
+
+            {hasPaid && !isApproved && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button className="h-10 px-6 font-semibold shadow-sm rounded-lg">
+                    Complete Verification
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Required Documents</DialogTitle>
+                    <DialogDescription>
+                      Upload active business credentials to finalize your
+                      identity verification.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
+                    {REQUIRED_DOCS.map((type) => {
+                      const doc = documents.find((d) => d.type === type);
+                      return (
+                        <DocumentUploadItem
+                          key={type}
+                          type={type}
+                          doc={doc}
+                          onUpload={(file) => handleUpload(type, file)}
+                          loading={uploading === type}
+                        />
+                      );
+                    })}
+                  </div>
+                </DialogContent>
+              </Dialog>
             )}
           </div>
         </div>
@@ -179,7 +287,9 @@ export default function VerificationDashboard() {
                     subscription?.status === "paid_pending" ||
                     isMoreInfo
                   ? "Pending Approval"
-                  : "Not Active"
+                  : isPaymentRequired
+                    ? "Waiting for Payment"
+                    : "Not Active"
             }
             icon={Calendar}
             gradient="from-primary/60 to-primary/40"
@@ -211,7 +321,9 @@ export default function VerificationDashboard() {
                   ? "verified_user"
                   : isExpired
                     ? "history_toggle_off"
-                    : "pending_actions"}
+                    : isPaymentRequired
+                      ? "credit_card"
+                      : "pending_actions"}
               </span>
             </div>
             <div className="flex-1">
@@ -220,7 +332,9 @@ export default function VerificationDashboard() {
                   ? "Verification Active"
                   : isExpired
                     ? "Subscription Expired"
-                    : "Identity Review"}
+                    : isPaymentRequired
+                      ? "Approval Complete - Payment Needed"
+                      : "Identity Review"}
               </h3>
               <p className="text-foreground/80 leading-relaxed font-medium italic">
                 "
@@ -230,7 +344,9 @@ export default function VerificationDashboard() {
                     ? "Your verification has expired. Renew now to restore your verified badge and maintain customer trust."
                     : isMoreInfo
                       ? "Our team needs more information to complete your verification. Please check your email or contact support."
-                      : "Your verification is currently being processed. Once approved, your badge will automatically display."}
+                      : isPaymentRequired
+                        ? "Great news! Your identity documents have been approved. To activate your verified badge and analytics dashboard, please complete your subscription payment."
+                        : "Your verification is currently being processed. Once approved, you will need to activate your subscription."}
                 "
               </p>
               <div className="mt-3 flex items-center gap-2">
@@ -248,37 +364,6 @@ export default function VerificationDashboard() {
             )}
           </div>
         </div>
-
-        {/* Document Section */}
-        <section className="space-y-6 pb-12">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="heading-2 font-bold">Required Documents</h2>
-              <p className="text-small text-muted-foreground mt-1">
-                Active business credentials for identity verification
-              </p>
-            </div>
-            <span className="text-[10px] font-black tracking-widest uppercase text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
-              {documents.filter((d) => d.status === "approved").length} /{" "}
-              {REQUIRED_DOCS.length} Verified
-            </span>
-          </div>
-
-          <div className="grid gap-4">
-            {REQUIRED_DOCS.map((type) => {
-              const doc = documents.find((d) => d.type === type);
-              return (
-                <DocumentUploadItem
-                  key={type}
-                  type={type}
-                  doc={doc}
-                  onUpload={(file) => handleUpload(type, file)}
-                  loading={uploading === type}
-                />
-              );
-            })}
-          </div>
-        </section>
       </div>
     </>
   );

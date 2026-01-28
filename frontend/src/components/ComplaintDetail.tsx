@@ -153,9 +153,12 @@ export function ComplaintDetail({ id }: ComplaintDetailProps) {
               <h2 className="font-bold text-2xl">
                 {complaint.brand?.name || "Unknown Brand"}
               </h2>
-              {complaint.brand?.isVerified && (
-                <BadgeCheck className="w-6 h-6 text-white fill-primary" />
-              )}
+              {complaint.brand?.isVerified &&
+                (!complaint.brand?.subscription?.endsAt ||
+                  new Date(complaint.brand?.subscription?.endsAt) >
+                    new Date()) && (
+                  <BadgeCheck className="w-6 h-6 text-white fill-primary" />
+                )}
             </div>
             <p className="text-xs text-muted-foreground">
               Filed on {new Date(complaint.createdAt).toLocaleDateString()}

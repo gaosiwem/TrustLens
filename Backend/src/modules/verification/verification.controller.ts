@@ -1,19 +1,51 @@
 import type { Request, Response } from "express";
 import prisma from "../../lib/prisma.js";
+import { notifyBrand } from "../notifications/notification.service.js";
 
 /**
  * Creates a brand verification request.
  */
 export async function requestVerification(req: any, res: Response) {
   try {
-    const brandId = req.user.brandId;
+    let brandId = req.user.brandId;
     const userId = req.user.userId;
     const { type } = req.body;
     const file = req.file;
 
-    if (!brandId)
+    // Fallback: If no brandId in token (stale session), try to find managed brand
+    if (!brandId && req.user.role === "BRAND") {
+      const managedBrand = await prisma.brand.findFirst({
+        where: { managerId: userId },
+        select: { id: true },
+      });
+      if (managedBrand) {
+        brandId = managedBrand.id;
+        console.log(`[Verification] Recovered brandId from DB: ${brandId}`);
+      }
+    }
+
+    console.log("[Verification] Request received:", {
+      brandId,
+      userId,
+      body: req.body,
+      file: req.file
+        ? {
+            filename: req.file.filename,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+          }
+        : "MISSING",
+    });
+
+    if (!brandId) {
+      console.warn("[Verification] Missing brand context");
       return res.status(400).json({ error: "Brand context required." });
+    }
     if (!type || !file) {
+      console.warn("[Verification] Missing type or file", {
+        type,
+        file: !!file,
+      });
       return res
         .status(400)
         .json({ error: "Document type and file are required." });
@@ -80,7 +112,7 @@ export async function getPendingRequests(req: Request, res: Response) {
         brand: {
           select: {
             name: true,
-            subscription: {
+            subscriptions: {
               include: {
                 plan: true,
               },
@@ -126,6 +158,19 @@ export async function processRequest(req: Request, res: Response) {
       data: { isVerified: status === "APPROVED" },
     });
 
+    // Notify Brand
+    try {
+      await notifyBrand({
+        brandId: request.brandId,
+        type: "SYSTEM_UPDATE",
+        title: `Verification Request ${status === "APPROVED" ? "Approved" : "Rejected"}`,
+        body: `Your verification request has been ${status.toLowerCase()}. ${comment ? `\n\nAdmin Comment: "${comment}"` : ""}`,
+        link: "/brand/settings",
+      });
+    } catch (err) {
+      console.error("Failed to send verification notification:", err);
+    }
+
     res.json(request);
   } catch (error) {
     console.error("Process request error:", error);
@@ -138,7 +183,16 @@ export async function processRequest(req: Request, res: Response) {
  */
 export async function getBrandVerificationStatus(req: any, res: Response) {
   try {
-    const brandId = req.user.brandId;
+    let brandId = req.user.brandId;
+
+    if (!brandId && req.user.role === "BRAND") {
+      const managedBrand = await prisma.brand.findFirst({
+        where: { managerId: req.user.userId },
+        select: { id: true },
+      });
+      brandId = managedBrand?.id;
+    }
+
     if (!brandId)
       return res.status(400).json({ error: "Brand context required." });
 
@@ -195,7 +249,16 @@ export async function getBrandVerificationStatus(req: any, res: Response) {
  */
 export async function getDocuments(req: any, res: Response) {
   try {
-    const brandId = req.user.brandId;
+    let brandId = req.user.brandId;
+
+    if (!brandId && req.user.role === "BRAND") {
+      const managedBrand = await prisma.brand.findFirst({
+        where: { managerId: req.user.userId },
+        select: { id: true },
+      });
+      brandId = managedBrand?.id;
+    }
+
     if (!brandId)
       return res.status(400).json({ error: "Brand context required." });
 
@@ -235,9 +298,10 @@ export async function getDocuments(req: any, res: Response) {
  */
 export async function getVerificationAnalytics(req: any, res: Response) {
   try {
-    const brandId = req.user.brandId;
-    if (!brandId)
+    if (!req.user || !req.user.brandId) {
       return res.status(400).json({ error: "Brand context required." });
+    }
+    const brandId = req.user.brandId;
 
     // 1. Find the date the brand was first approved for verification
     const verificationRequest = await prisma.verifiedRequest.findFirst({
@@ -246,8 +310,9 @@ export async function getVerificationAnalytics(req: any, res: Response) {
     });
 
     // If never verified, we can't show "before/after" comparison properly
-    // But we'll use a fallback to show current metrics
-    const vDate = verificationRequest?.updatedAt || new Date();
+    // But we'll use a fallback to show current metrics (from the beginning of time)
+    // using new Date() caused all 'gte' queries to return 0.
+    const vDate = verificationRequest?.updatedAt || new Date(0);
 
     // 2. Fetch metrics before and after
     const [
@@ -259,6 +324,7 @@ export async function getVerificationAnalytics(req: any, res: Response) {
       followupsBefore,
       escalationsBefore,
       escalationsAfter,
+      totalViews,
     ] = await Promise.all([
       // Complaints
       prisma.complaint.count({ where: { brandId, createdAt: { lt: vDate } } }),
@@ -308,13 +374,15 @@ export async function getVerificationAnalytics(req: any, res: Response) {
       prisma.escalationCase.count({
         where: { complaint: { brandId, createdAt: { gte: vDate } } },
       }),
+      // Mock views count based on complaints simply for now
+      prisma.complaint.count({ where: { brandId } }),
     ]);
 
     // Calculate Average Response Time in hours
     const calcAvgResponseTime = (complaints: any[]) => {
-      if (complaints.length === 0) return 0;
+      if (!complaints || complaints.length === 0) return 0;
       const totalHours = complaints.reduce((acc, c) => {
-        const firstResponse = c.followups[0];
+        const firstResponse = c.followups?.[0];
         if (!firstResponse) return acc;
         const diff =
           new Date(firstResponse.createdAt).getTime() -
@@ -337,18 +405,35 @@ export async function getVerificationAnalytics(req: any, res: Response) {
         ? Math.round((escalationsAfter / complaintsAfter) * 100)
         : 0;
 
-    // Visibility data (Currently not tracked in DB, using estimated mocks inspired by platform averages)
-    // In Sprint 24+ we should add an AnalyticsEvent model to track these properly.
-    const profileViews = Math.round(complaintsAfter * 12.5) + 45;
-    const verifiedBadgeClicks = Math.round(profileViews * 0.33);
+    // Visibility data (Real Data from AuditLogs)
+    // We count VIEW_PROFILE and CLICK_VERIFIED_BADGE for this brand
+    const [profileViews, verifiedBadgeClicks] = await Promise.all([
+      prisma.auditLog.count({
+        where: {
+          action: "VIEW_PROFILE",
+          entity: "BRAND",
+          entityId: brandId,
+          createdAt: { gte: vDate }, // Count since verification? Or all time? Let's use all time for now or match requested range.
+          // The requested mock logic used totalViews (all time) so we'll stick to that but we can filter by date if needed.
+          // Actually, let's just count all views for simplicity as "Profile Views" usually implies total.
+        },
+      }),
+      prisma.auditLog.count({
+        where: {
+          action: "CLICK_VERIFIED_BADGE",
+          entity: "BRAND",
+          entityId: brandId,
+        },
+      }),
+    ]);
 
     const stats = {
       trustScoreBefore: ratingsBefore._avg.stars || 0,
       trustScoreAfter: ratingsAfter._avg.stars || 0,
       complaintsBefore,
       complaintsAfter,
-      avgResponseTimeBefore: avgResponseTimeBefore || 48, // Fallback for visibility
-      avgResponseTimeAfter: avgResponseTimeAfter || 12,
+      avgResponseTimeBefore: avgResponseTimeBefore || 0,
+      avgResponseTimeAfter: avgResponseTimeAfter || 0,
       profileViews,
       verifiedBadgeClicks,
       escalationRateBefore,
@@ -357,8 +442,8 @@ export async function getVerificationAnalytics(req: any, res: Response) {
     };
 
     res.json(stats);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get verification analytics error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 }

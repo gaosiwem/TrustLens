@@ -8,7 +8,16 @@ export async function getBrandSentimentDailyController(
 ) {
   try {
     const user = (req as any).user;
-    const brandId = user.brandId;
+    let brandId = user.brandId;
+
+    // For BRAND users, look up their managed brand
+    if (!brandId && user.role === "BRAND") {
+      const managedBrand = await prisma.brand.findFirst({
+        where: { managerId: user.userId },
+        select: { id: true },
+      });
+      brandId = managedBrand?.id;
+    }
 
     if (!brandId) {
       return res
@@ -38,7 +47,16 @@ export async function getBrandSentimentEventsController(
 ) {
   try {
     const user = (req as any).user;
-    const brandId = user.brandId;
+    let brandId = user.brandId;
+
+    // For BRAND users, look up their managed brand
+    if (!brandId && user.role === "BRAND") {
+      const managedBrand = await prisma.brand.findFirst({
+        where: { managerId: user.userId },
+        select: { id: true },
+      });
+      brandId = managedBrand?.id;
+    }
 
     if (!brandId) {
       return res
@@ -49,10 +67,31 @@ export async function getBrandSentimentEventsController(
     const { take: takeParam } = req.query;
     const take = Math.min(Number(takeParam || "50"), 200);
 
-    const items = await prisma.sentimentEvent.findMany({
+    const events = await prisma.sentimentEvent.findMany({
       where: { brandId },
       orderBy: { createdAt: "desc" },
       take,
+    });
+
+    // Enrich RATING events with stars
+    const ratingIds = events
+      .filter((e) => e.sourceType === "RATING" && e.sourceId)
+      .map((e) => e.sourceId!);
+
+    let ratings: any[] = [];
+    if (ratingIds.length > 0) {
+      ratings = await prisma.rating.findMany({
+        where: { id: { in: ratingIds } },
+        select: { id: true, stars: true, comment: true },
+      });
+    }
+
+    const items = events.map((event) => {
+      if (event.sourceType === "RATING") {
+        const r = ratings.find((r) => r.id === event.sourceId);
+        return { ...event, rating: r || null };
+      }
+      return event;
     });
 
     res.json({ items });

@@ -8,7 +8,7 @@ function VerifyEmailContent() {
   const params = useSearchParams();
   const token = params.get("token");
   const [status, setStatus] = useState<"loading" | "success" | "error">(
-    "loading"
+    "loading",
   );
 
   useEffect(() => {
@@ -22,7 +22,6 @@ function VerifyEmailContent() {
     }
   }, [token]);
 
-  return (
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="flex flex-col gap-6 p-8 max-w-md w-full bg-white dark:bg-[#1a2c34] rounded-2xl shadow-xl border border-[#dce0e5] dark:border-[#2c3e46] text-center">
@@ -74,7 +73,6 @@ function VerifyEmailContent() {
         )}
       </div>
     </div>
-  );
   );
 }
 

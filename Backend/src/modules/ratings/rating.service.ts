@@ -1,4 +1,7 @@
 import prisma from "../../lib/prisma.js";
+import { getSentimentQueue } from "../../queues/sentiment.queue.js";
+import logger from "../../config/logger.js";
+import { notifyBrand } from "../notifications/notification.service.js";
 
 export async function createRating(params: {
   userId: string;
@@ -11,53 +14,108 @@ export async function createRating(params: {
     throw new Error("Stars must be between 1 and 5");
   }
 
-  return prisma.$transaction(async (tx) => {
-    // Create or update the rating
-    const rating = await tx.rating.upsert({
-      where: {
-        userId_complaintId: {
+  const { rating, fullComplaint } = await prisma.$transaction(
+    async (tx) => {
+      // Create or update the rating
+      const rating = await tx.rating.upsert({
+        where: {
+          userId_complaintId: {
+            userId: params.userId,
+            complaintId: params.complaintId,
+          },
+        },
+        update: {
+          stars: params.stars,
+          comment: params.comment || null,
+        },
+        create: {
           userId: params.userId,
           complaintId: params.complaintId,
+          stars: params.stars,
+          comment: params.comment || null,
         },
-      },
-      update: {
-        stars: params.stars,
-        comment: params.comment || null,
-      },
-      create: {
-        userId: params.userId,
-        complaintId: params.complaintId,
-        stars: params.stars,
-        comment: params.comment || null,
-      },
-    });
+        include: {
+          complaint: {
+            select: { brandId: true },
+          },
+        },
+      });
 
-    // Get current complaint status
-    const complaint = await tx.complaint.findUnique({
-      where: { id: params.complaintId },
-      select: { status: true },
-    });
-
-    // Update complaint status to RESOLVED if not already
-    if (complaint && complaint.status !== "RESOLVED") {
-      await tx.complaint.update({
+      // Get current complaint status and details
+      const complaint = await tx.complaint.findUnique({
         where: { id: params.complaintId },
-        data: { status: "RESOLVED" },
+        select: { status: true, brandId: true, title: true },
       });
 
-      // Log the status change
-      await tx.complaintStatusHistory.create({
-        data: {
-          complaintId: params.complaintId,
-          fromStatus: complaint.status,
-          toStatus: "RESOLVED",
-          changedBy: params.userId,
-        },
-      });
+      let fullComplaint = null;
+
+      // Update complaint status to RESOLVED if not already
+      if (complaint && complaint.status !== "RESOLVED") {
+        await tx.complaint.update({
+          where: { id: params.complaintId },
+          data: { status: "RESOLVED" },
+        });
+
+        // Log the status change
+        await tx.complaintStatusHistory.create({
+          data: {
+            complaintId: params.complaintId,
+            fromStatus: complaint.status,
+            toStatus: "RESOLVED",
+            changedBy: params.userId,
+          },
+        });
+
+        // Prepare details for notification
+        fullComplaint = complaint;
+      }
+
+      return { rating, fullComplaint };
+    },
+    { timeout: 10000 },
+  );
+
+  // Send Notification if status was changed to RESOLVED
+  if (fullComplaint) {
+    try {
+      await notifyBrand({
+        brandId: fullComplaint.brandId,
+        type: "STATUS_CHANGED",
+        title: "Complaint Resolved",
+        body: `The complaint "${fullComplaint.title}" has been resolved and rated by the customer.`,
+        link: `/brand/complaints/${params.complaintId}`,
+        reviewRating: params.stars,
+        reviewComment: params.comment,
+      } as any);
+    } catch (err) {
+      logger.error("Failed to send rating resolution email", err);
     }
+  }
 
-    return rating;
-  });
+  // Trigger sentiment analysis if rating has a comment
+  if (params.comment && params.comment.trim().length > 0) {
+    const queue = getSentimentQueue();
+    if (queue) {
+      // Include star rating in the text for better sentiment context
+      const starText = `${params.stars} star rating`;
+      const textToAnalyze = `${starText}: ${params.comment}`;
+
+      queue
+        .add("rating-sentiment", {
+          brandId: rating.complaint.brandId,
+          complaintId: params.complaintId,
+          sourceType: "RATING",
+          sourceId: rating.id,
+          text: textToAnalyze,
+          stars: params.stars,
+        })
+        .catch((err) => {
+          logger.error("Failed to add rating to sentiment queue:", err);
+        });
+    }
+  }
+
+  return rating;
 }
 
 export async function getRatingsForComplaint(complaintId: string) {

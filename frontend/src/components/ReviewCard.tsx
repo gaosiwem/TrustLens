@@ -157,9 +157,10 @@ export function ReviewCard({
               <span className="text-[11px] font-black tracking-[0.15em] text-muted-foreground/70">
                 {brandName}
               </span>
-              {isVerified && (
-                <BadgeCheck className="w-4 h-4 text-white fill-primary ml-1" />
-              )}
+              {isVerified &&
+                (!verifiedUntil || new Date(verifiedUntil) > new Date()) && (
+                  <BadgeCheck className="w-4 h-4 text-white fill-primary ml-1" />
+                )}
             </div>
             {/* {brandTrustScore !== undefined && (
               <div className="flex items-center gap-2 mt-0.5">

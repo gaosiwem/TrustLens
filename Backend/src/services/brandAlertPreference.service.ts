@@ -14,9 +14,9 @@ export async function ensureBrandAlertPrefs(brandId: string) {
       complaintCreated: true,
       escalations: true,
       newMessages: true,
-      statusChanges: false,
-      evidenceAdded: false,
-      dailyDigestEnabled: false,
+      statusChanges: true,
+      evidenceAdded: true,
+      dailyDigestEnabled: true,
     },
   });
 }

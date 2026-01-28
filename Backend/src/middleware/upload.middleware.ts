@@ -25,7 +25,7 @@ const storage = multer.diskStorage({
 function fileFilter(
   req: any,
   file: Express.Multer.File,
-  cb: multer.FileFilterCallback
+  cb: multer.FileFilterCallback,
 ) {
   const allowed = [
     "image/png",
@@ -36,13 +36,16 @@ function fileFilter(
     "application/pdf",
   ];
   if (allowed.includes(file.mimetype)) {
+    logger.info(
+      `[UploadMiddleware] File accepted: ${file.originalname} (${file.mimetype})`,
+    );
     cb(null, true);
   } else {
     logger.warn(
-      `File upload rejected (invalid mimetype): ${file.originalname} (${file.mimetype})`
+      `File upload rejected (invalid mimetype): ${file.originalname} (${file.mimetype})`,
     );
     const error = new Error(
-      "Invalid file type. Only images and PDFs are allowed."
+      "Invalid file type. Only images and PDFs are allowed.",
     );
     (error as any).statusCode = 400;
     cb(error);

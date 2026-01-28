@@ -1,6 +1,7 @@
 import prisma from "../../lib/prisma.js";
 import { findBrandLogo } from "./logo.service.js";
 import logger from "../../config/logger.js";
+import { logAction } from "../audit/audit.service.js";
 
 export async function resolveBrand(
   name: string,
@@ -104,7 +105,7 @@ export async function getBrands(
       where,
       orderBy: { [sortBy]: sortOrder },
       include: {
-        subscription: {
+        subscriptions: {
           include: {
             plan: true,
           },
@@ -231,7 +232,7 @@ export async function getBrandPublicProfile(params: {
   const brand = await prisma.brand.findUnique({
     where: { id },
     include: {
-      subscription: {
+      subscriptions: {
         include: { plan: true },
       },
     },
@@ -256,6 +257,15 @@ export async function getBrandPublicProfile(params: {
       _avg: { stars: true },
       _count: { stars: true },
     }),
+    // [NEW] Log the view
+    // We fire and forget this to not slow down the response
+    logAction({
+      userId: "GUEST", // We don't have request context here easily unless passed.
+      // Ideally we'd pass userId if available, but for now just tracking "views"
+      action: "VIEW_PROFILE",
+      entity: "BRAND",
+      entityId: id,
+    }).catch((err) => console.error("Failed to log view:", err)),
   ]);
 
   const ratingDistribution = [0, 0, 0, 0, 0];
@@ -290,9 +300,11 @@ export async function getBrandPublicProfile(params: {
   const trustScore = (v * R + m * C) / (v + m);
 
   // Secure IsVerified: Requires BOTH admin approval AND an active VERIFIED subscription
-  const isActiveVerifiedSub =
-    brand.subscription?.status === "ACTIVE" &&
-    brand.subscription.plan.code.includes("VERIFIED");
+  const verifiedSub = brand.subscriptions?.find(
+    (s: any) => s.status === "ACTIVE" && s.plan.code.includes("VERIFIED"),
+  );
+
+  const isActiveVerifiedSub = !!verifiedSub;
 
   const secureIsVerified = brand.isVerified && isActiveVerifiedSub;
 

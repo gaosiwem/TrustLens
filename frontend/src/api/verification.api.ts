@@ -41,6 +41,7 @@ export const uploadVerificationDocument = async (
   type: string,
   file: File,
 ) => {
+  console.log(`[Frontend API] Uploading document: ${type}`, file);
   const formData = new FormData();
   formData.append("type", type);
   formData.append("file", file);

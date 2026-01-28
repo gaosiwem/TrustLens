@@ -23,7 +23,7 @@ export async function evaluateEntityTrust(
     const brand = await client.brand.findUnique({
       where: { id: entityId },
       include: {
-        subscription: { include: { plan: true } },
+        subscriptions: { include: { plan: true } },
       },
     });
 
@@ -73,7 +73,11 @@ export async function evaluateEntityTrust(
     let verificationScore = 60;
     if (brand.isVerified) {
       verificationScore = 80;
-      if (brand.subscription?.plan?.code?.includes("PREMIUM")) {
+      if (
+        brand.subscriptions?.some(
+          (s: any) => s.status === "ACTIVE" && s.plan.code.includes("PREMIUM"),
+        )
+      ) {
         verificationScore = 100;
       }
     }
@@ -89,7 +93,13 @@ export async function evaluateEntityTrust(
         resolvedComplaints,
         highRiskResponses,
         isVerified: brand.isVerified,
-        plan: brand.subscription?.plan?.name || "Free",
+        // Find the "best" plan to display (Verified > Intelligence > Free)
+        plan:
+          brand.subscriptions?.find((s: any) =>
+            s.plan.code.includes("VERIFIED"),
+          )?.plan.name ||
+          brand.subscriptions?.[0]?.plan.name ||
+          "Free",
       },
     };
   } else {

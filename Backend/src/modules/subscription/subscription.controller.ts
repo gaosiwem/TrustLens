@@ -24,23 +24,7 @@ export async function createCheckoutSession(req: any, res: Response) {
         .json({ error: "User is not associated with a brand." });
     }
 
-    // Check for existing active subscription to prevent duplicates
-    const activeSubscription = await prisma.brandSubscription.findFirst({
-      where: {
-        brandId,
-        status: "ACTIVE",
-        plan: {
-          code: planCode,
-        },
-      },
-    });
-
-    if (activeSubscription) {
-      return res.status(400).json({
-        error: `You already have an active ${planCode} subscription.`,
-      });
-    }
-
+    // Lookup the plan first
     const plan = await prisma.subscriptionPlan.findUnique({
       where: { code: planCode },
     });
@@ -52,6 +36,21 @@ export async function createCheckoutSession(req: any, res: Response) {
     console.log(
       `[Checkout] Plan found: ${plan.name}, price: ${plan.monthlyPrice}`,
     );
+
+    // Check for existing active subscription for THIS PLAN to prevent duplicates
+    const activeSubscription = await prisma.brandSubscription.findFirst({
+      where: {
+        brandId,
+        planId: plan.id,
+        status: "ACTIVE",
+      },
+    });
+
+    if (activeSubscription) {
+      return res.status(400).json({
+        error: `You already have an active ${planCode} subscription.`,
+      });
+    }
 
     const isVerifiedPlan = planCode.includes("VERIFIED");
     const returnUrl = isVerifiedPlan
@@ -117,32 +116,40 @@ export async function handleWebhook(req: Request, res: Response) {
     const endsAt = new Date();
     endsAt.setDate(endsAt.getDate() + durationDays);
 
-    // Upsert subscription
-    const subscription = await prisma.brandSubscription.upsert({
-      where: { brandId },
-      update: {
-        planId: plan.id,
-        status: "ACTIVE",
-        startedAt: new Date(),
-        endsAt,
-        gatewayRef: m_payment_id,
-      },
-      create: {
-        brandId,
-        planId: plan.id,
-        status: "ACTIVE",
-        startedAt: new Date(),
-        endsAt,
-        gatewayRef: m_payment_id,
-      },
+    // Find existing subscription for this brand + plan combination
+    const existingSub = await prisma.brandSubscription.findFirst({
+      where: { brandId, planId: plan.id },
     });
 
-    // If it's a verified plan, update Brand.isVerified and VerifiedSubscription history
-    if (isVerifiedPlan) {
-      await prisma.brand.update({
-        where: { id: brandId },
-        data: { isVerified: true },
+    let subscription;
+    if (existingSub) {
+      subscription = await prisma.brandSubscription.update({
+        where: { id: existingSub.id },
+        data: {
+          status: "ACTIVE",
+          startedAt: new Date(),
+          endsAt,
+          gatewayRef: m_payment_id,
+        },
       });
+    } else {
+      subscription = await prisma.brandSubscription.create({
+        data: {
+          brandId,
+          planId: plan.id,
+          status: "ACTIVE",
+          startedAt: new Date(),
+          endsAt,
+          gatewayRef: m_payment_id,
+        },
+      });
+    }
+
+    // If it's a verified plan, create VerifiedSubscription history if a request exists
+    if (isVerifiedPlan) {
+      // Note: We do NOT automatically set brand.isVerified = true here.
+      // Verification requires document approval.
+      // The user will now be in "paid_pending" state until they upload docs and admin approves.
 
       const latestRequest = await prisma.verifiedRequest.findFirst({
         where: { brandId },
@@ -206,23 +213,52 @@ export async function getCurrentSubscription(req: any, res: Response) {
     }
 
     if (!brandId) {
-      return res.json({ plan: "FREE" });
+      return res.json({ plan: "FREE", activePlans: [] });
     }
 
-    const subscription = await prisma.brandSubscription.findUnique({
-      where: { brandId },
+    // Get ALL active subscriptions for this brand
+    const subscriptions = await prisma.brandSubscription.findMany({
+      where: { brandId, status: "ACTIVE" },
       include: { plan: true },
     });
 
-    if (!subscription || subscription.status !== "ACTIVE") {
-      return res.json({ plan: "FREE" });
+    if (subscriptions.length === 0) {
+      return res.json({ plan: "FREE", activePlans: [] });
+    }
+
+    // Return the "primary" plan (prefer Verified > Intelligence) for backwards compatibility
+    // Also return all active plans for the pricing page to check
+    const verifiedSub = subscriptions.find((s) =>
+      s.plan.code.includes("VERIFIED"),
+    );
+    const primarySub = verifiedSub || subscriptions[0]!;
+
+    // Merge features from ALL active subscriptions
+    // This allows a brand with PRO + BASIC_VERIFIED to get features from both
+    const mergedFeatures: Record<string, any> = {};
+    for (const sub of subscriptions) {
+      const planFeatures = sub.plan.features as Record<string, any>;
+      for (const [key, value] of Object.entries(planFeatures)) {
+        // For boolean features: true wins over false
+        // For numeric features: take the higher value (e.g. maxTeamSeats)
+        if (typeof value === "boolean") {
+          mergedFeatures[key] = mergedFeatures[key] || value;
+        } else if (typeof value === "number") {
+          mergedFeatures[key] = Math.max(mergedFeatures[key] || 0, value);
+        } else {
+          // For strings or other types, prefer the first non-null value
+          mergedFeatures[key] = mergedFeatures[key] ?? value;
+        }
+      }
     }
 
     res.json({
-      plan: subscription.plan.code,
-      status: subscription.status,
-      expiresAt: subscription.endsAt,
-      features: subscription.plan.features,
+      plan: primarySub.plan.code,
+      status: primarySub.status,
+      expiresAt: primarySub.endsAt,
+      features: mergedFeatures,
+      // Return all active plan codes
+      activePlans: subscriptions.map((s) => s.plan.code),
     });
   } catch (error) {
     console.error("Error getting current subscription:", error);
@@ -295,34 +331,49 @@ export async function activateDevSubscription(req: any, res: Response) {
     );
     console.log(`[DEV_ACTIVATE] Upserting BrandSubscription...`);
 
-    const subscription = await prisma.brandSubscription.upsert({
-      where: { brandId },
-      update: {
-        planId: plan.id,
-        status: "ACTIVE",
-        startedAt: new Date(),
-        endsAt,
-        gatewayRef: "DEV_ACTIVATE",
-      },
-      create: {
-        brandId,
-        planId: plan.id,
-        status: "ACTIVE",
-        startedAt: new Date(),
-        endsAt,
-        gatewayRef: "DEV_ACTIVATE",
-      },
+    // Find existing subscription for this brand + plan combination
+    const existingSub = await prisma.brandSubscription.findFirst({
+      where: { brandId, planId: plan.id },
     });
+
+    let subscription;
+    if (existingSub) {
+      subscription = await prisma.brandSubscription.update({
+        where: { id: existingSub.id },
+        data: {
+          status: "ACTIVE",
+          startedAt: new Date(),
+          endsAt,
+          gatewayRef: "DEV_ACTIVATE",
+        },
+      });
+    } else {
+      subscription = await prisma.brandSubscription.create({
+        data: {
+          brandId,
+          planId: plan.id,
+          status: "ACTIVE",
+          startedAt: new Date(),
+          endsAt,
+          gatewayRef: "DEV_ACTIVATE",
+        },
+      });
+    }
 
     console.log("[DEV_ACTIVATE] BrandSubscription upserted:", subscription);
 
     // Handle Verified status and subscription
     if (isVerifiedPlan) {
-      console.log("[DEV_ACTIVATE] Updating Brand.isVerified to true...");
-      await prisma.brand.update({
-        where: { id: brandId },
-        data: { isVerified: true },
-      });
+      console.log(
+        "[DEV_ACTIVATE] Handling verified plan logic (Active subscription state)...",
+      );
+      // Note: We do NOT set isVerified=true here anymore.
+      // Devs should approve the document request to verify.
+
+      // await prisma.brand.update({
+      //   where: { id: brandId },
+      //   data: { isVerified: true },
+      // });
       console.log("[DEV_ACTIVATE] Brand.isVerified updated.");
 
       // Also try to link to a verified request if it exists

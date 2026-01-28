@@ -18,7 +18,7 @@ const PLANS = [
       "Essential identity verification for SMEs, sole proprietors, and new businesses.",
     features: [
       "Business identity verification",
-      "Green verified badge",
+      "Verified badge",
       "Annual status re-validation",
       "Standard processing queue",
     ],

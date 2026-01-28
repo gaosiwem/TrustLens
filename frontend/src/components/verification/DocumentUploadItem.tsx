@@ -45,50 +45,50 @@ export default function DocumentUploadItem({
     statusConfig[status as keyof typeof statusConfig] || statusConfig.none;
 
   return (
-    <div className="p-6 rounded-3xl border border-border bg-card flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all hover:shadow-lg hover:shadow-primary/5">
+    <div className="p-4 rounded-xl border border-border bg-card flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all hover:bg-muted/30">
       <div className="space-y-1 grow">
-        <h4 className="text-lg font-black tracking-tight italic flex items-center gap-2">
+        <h4 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-2">
           {label}
           {loading && (
-            <span className="animate-pulse text-primary text-[10px] normal-case bg-primary/10 px-2 py-0.5 rounded-full">
+            <span className="animate-pulse text-primary text-[10px] bg-primary/10 px-1.5 py-0.5 rounded-full">
               Uploading...
             </span>
           )}
         </h4>
         <div
           className={cn(
-            "inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black tracking-widest",
-            config.bg
+            "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-medium uppercase tracking-wider",
+            config.bg,
           )}
         >
           {config.icon}
           {config.text}
         </div>
         {doc?.rejectionReason && (
-          <p className="text-xs text-destructive font-bold mt-2 bg-destructive/5 p-3 rounded-xl border border-destructive/10">
+          <p className="text-xs text-destructive mt-1.5 ">
             Reason: {doc.rejectionReason}
           </p>
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+      <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
         {doc?.url && (
           <a
             href={doc.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 h-12 px-6 rounded-2xl font-black transition-all bg-secondary text-secondary-foreground hover:shadow-lg hover:shadow-secondary/20 active:scale-95 border-2 border-border"
+            className="flex items-center justify-center gap-2 h-9 px-4 rounded-lg text-xs font-medium transition-all bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input shadow-sm"
           >
-            <FileText className="w-4 h-4" />
+            <FileText className="w-3.5 h-3.5" />
             View
           </a>
         )}
         <label
           className={cn(
-            "flex-1 md:flex-none flex items-center justify-center gap-2 h-12 px-6 rounded-2xl font-black transition-all cursor-pointer",
+            "flex-1 md:flex-none flex items-center justify-center gap-2 h-9 px-4 rounded-lg text-xs font-medium transition-all cursor-pointer shadow-sm",
             status === "approved"
               ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-primary text-primary-foreground hover:shadow-lg hover:shadow-primary/20 active:scale-95"
+              : "bg-primary text-primary-foreground hover:bg-primary/90",
           )}
         >
           <input
@@ -100,7 +100,7 @@ export default function DocumentUploadItem({
               if (file) onUpload(file);
             }}
           />
-          <Upload className="w-4 h-4" />
+          <Upload className="w-3.5 h-3.5" />
           {status === "none" ? "Upload" : "Replace"}
         </label>
       </div>

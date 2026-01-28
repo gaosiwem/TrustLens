@@ -1,20 +1,9 @@
 import { Worker, Job } from "bullmq";
 import { Redis } from "ioredis";
-import nodemailer from "nodemailer";
 import { prisma } from "../lib/prisma.js";
 import { EmailOutboxService } from "../services/emailOutbox.service.js";
+import { EmailTransport } from "../services/email/emailTransport.js";
 import logger from "../config/logger.js";
-
-// Create Nodemailer transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "localhost",
-  port: parseInt(process.env.SMTP_PORT || "1025"),
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
 
 let emailWorker: Worker | null = null;
 
@@ -77,9 +66,7 @@ export function initEmailWorker(): Worker | null {
         }
 
         try {
-          await transporter.sendMail({
-            from:
-              process.env.EMAIL_FROM || '"TrustLens" <noreply@trustlens.com>',
+          await EmailTransport.send({
             to: outboxItem.toEmail,
             subject: outboxItem.subject,
             text: outboxItem.textBody ?? "",

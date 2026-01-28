@@ -41,6 +41,12 @@ const Header: FC<Props> = ({ toggleSidebar }) => {
             TrustLens
           </h1>
         </Link>
+        <Link
+          href="/complaints"
+          className="hidden md:block text-sm font-medium text-muted-foreground hover:text-primary transition-colors ml-4"
+        >
+          Browse Complaints
+        </Link>
       </div>
 
       <div className="flex items-center gap-4">

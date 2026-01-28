@@ -15,7 +15,7 @@ import { ReactNode } from "react";
 import { ALL_PLANS } from "../../config/plans";
 
 export function FeatureGate({ allowed, feature, children }: FeatureGateProps) {
-  const { plan: currentPlanCode, features } = useSubscription();
+  const { activePlans, features } = useSubscription();
 
   // 1. Check if specific feature flag is missing
   if (feature && !features[feature]) {
@@ -23,7 +23,8 @@ export function FeatureGate({ allowed, feature, children }: FeatureGateProps) {
   }
 
   // 2. Fallback to plan-based gating if provided
-  if (allowed && !allowed.includes(currentPlanCode)) {
+  // Check if ANY of the user's active plans is in the allowed list
+  if (allowed && !allowed.some((plan) => activePlans.includes(plan))) {
     return <LockedState />;
   }
 

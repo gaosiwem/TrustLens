@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { BadgeCheck, Globe, Star, Users } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { getAssetUrl } from "../../../lib/utils";
 import Link from "next/link";
 import { Button } from "../../../components/ui/button";
@@ -137,6 +137,26 @@ export default function BrandProfilePage() {
 
   const pagination = (profile as any)?.pagination;
 
+  /* Hook for router */
+  const router = useRouter();
+
+  const handleVerificationClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (id) {
+      try {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000"}/analytics/brands/${id}/badge-click`,
+          { method: "POST" },
+        );
+      } catch (err) {
+        console.error("Failed to track badge click:", err);
+      }
+    }
+    router.push("/verified-explained");
+  };
+
+  /* ... existing code ... */
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <PublicHeader />
@@ -165,7 +185,13 @@ export default function BrandProfilePage() {
                     {profile?.name}
                   </h1>
                   {profile?.isVerified && (
-                    <BadgeCheck className="w-8 h-8 text-white fill-primary ml-2" />
+                    <button
+                      onClick={handleVerificationClick}
+                      className="hover:opacity-80 transition-opacity focus:outline-none"
+                      title="Verified - Click to learn what this means"
+                    >
+                      <BadgeCheck className="w-8 h-8 text-white fill-primary ml-2" />
+                    </button>
                   )}
                 </div>
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-6">

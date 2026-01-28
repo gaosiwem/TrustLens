@@ -21,6 +21,7 @@ export type Plan =
 
 interface SubscriptionContextType {
   plan: Plan;
+  activePlans: Plan[];
   features: Record<string, boolean>;
   loading: boolean;
   refreshSubscription: () => Promise<void>;
@@ -42,6 +43,7 @@ export const useSubscription = () => {
 
 export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const [plan, setPlan] = useState<Plan>("FREE");
+  const [activePlans, setActivePlans] = useState<Plan[]>([]);
   const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const { data: session } = useSession();
@@ -72,6 +74,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       if (res.ok) {
         const data = await res.json();
         setPlan(data.plan || "FREE");
+        setActivePlans(data.activePlans || []);
         setFeatures(data.features || {});
       }
     } catch (error) {
@@ -89,6 +92,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     <SubscriptionContext.Provider
       value={{
         plan,
+        activePlans,
         features,
         loading,
         refreshSubscription: fetchSubscription,

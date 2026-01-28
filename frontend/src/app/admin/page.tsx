@@ -15,7 +15,7 @@ import UserManager from "./components/UserManager";
 import AdminBrandQueue from "../../components/AdminBrandQueue";
 import AdminVerificationQueue from "./components/AdminVerificationQueue";
 import VerificationOps from "./verification-ops/page";
-import GovernanceDashboard from "./governance/page";
+import InvoiceManager from "./components/InvoiceManager";
 
 export default function AdminDashboardPage() {
   const { data: session } = useSession();
@@ -27,6 +27,7 @@ export default function AdminDashboardPage() {
     | "verification"
     | "verification-ops"
     | "governance"
+    | "invoices"
   >("overview");
 
   return (
@@ -72,14 +73,14 @@ export default function AdminDashboardPage() {
 
       {/* Tabs */}
       <div className="border-b border-border bg-card px-6">
-        <div className="max-w-7xl mx-auto flex gap-6">
+        <div className="max-w-7xl mx-auto flex gap-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab("overview")}
             className={clsx(
-              "py-4 text-sm font-medium transition-colors border-b-2",
+              "py-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap",
               activeTab === "overview"
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
             Overview
@@ -87,10 +88,10 @@ export default function AdminDashboardPage() {
           <button
             onClick={() => setActiveTab("brands")}
             className={clsx(
-              "py-4 text-sm font-medium transition-colors border-b-2",
+              "py-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap",
               activeTab === "brands"
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
             Brand Management
@@ -98,10 +99,10 @@ export default function AdminDashboardPage() {
           <button
             onClick={() => setActiveTab("users")}
             className={clsx(
-              "py-4 text-sm font-medium transition-colors border-b-2",
+              "py-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap",
               activeTab === "users"
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
             Users
@@ -109,43 +110,54 @@ export default function AdminDashboardPage() {
           <button
             onClick={() => setActiveTab("claims")}
             className={clsx(
-              "py-4 text-sm font-medium transition-colors border-b-2",
+              "py-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap",
               activeTab === "claims"
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
-            Brand Ownership Claims
+            Brand Claims
           </button>
           <button
             onClick={() => setActiveTab("verification")}
             className={clsx(
-              "py-4 text-sm font-medium transition-colors border-b-2",
+              "py-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap",
               activeTab === "verification"
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
             Verification Requests
           </button>
           <button
-            onClick={() => setActiveTab("verification-ops")}
+            onClick={() => setActiveTab("invoices")}
             className={clsx(
-              "py-4 text-sm font-medium transition-colors border-b-2",
-              activeTab === "verification-ops"
+              "py-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap",
+              activeTab === "invoices"
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
-            Verification Operations
+            Invoices
+          </button>
+          <button
+            onClick={() => setActiveTab("verification-ops")}
+            className={clsx(
+              "py-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap",
+              activeTab === "verification-ops"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Verification Ops
           </button>
           <button
             onClick={() => setActiveTab("governance")}
             className={clsx(
-              "py-4 text-sm font-medium transition-colors border-b-2",
+              "py-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap",
               activeTab === "governance"
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
             Governance
@@ -179,6 +191,7 @@ export default function AdminDashboardPage() {
         {activeTab === "verification" && <AdminVerificationQueue />}
         {activeTab === "verification-ops" && <VerificationOps />}
         {activeTab === "governance" && <GovernanceDashboard />}
+        {activeTab === "invoices" && <InvoiceManager />}
       </main>
     </div>
   );

@@ -10,6 +10,8 @@ import {
   createUserNotification,
 } from "../notifications/notification.service.js";
 import { getSentimentQueue } from "../../queues/sentiment.queue.js";
+import { EmailTemplates } from "../../services/email/emailTemplates.js";
+import { EmailOutboxService } from "../../services/emailOutbox.service.js";
 
 export async function createComplaint(input: {
   userId: string;
@@ -40,6 +42,29 @@ export async function createComplaint(input: {
     },
   });
   logger.info("[ComplaintService] Complaint record created: %s", complaint.id);
+
+  // Send Brand Invitation if unclaimed and has contact info
+  if (!(brand as any).managerId && (brand as any).supportEmail) {
+    try {
+      logger.info(
+        "[ComplaintService] Brand unclaimed. Sending invitation to %s",
+        (brand as any).supportEmail,
+      );
+      const inviteEmail = EmailTemplates.getBrandInvitationEmail(
+        input.brandName,
+        complaint.id,
+      );
+      await EmailOutboxService.enqueueEmail({
+        toEmail: (brand as any).supportEmail,
+        subject: inviteEmail.subject,
+        htmlBody: inviteEmail.htmlBody,
+        textBody: inviteEmail.textBody,
+        brandId: "system",
+      });
+    } catch (err) {
+      logger.error("Failed to send brand invitation:", err);
+    }
+  }
 
   // Create attachment records
   if (input.attachments && input.attachments.length > 0) {
@@ -168,12 +193,28 @@ export async function changeComplaintStatus(params: {
 
   // SPRINT 28: Notify Brand of status change
   try {
+    let reviewRating: number | undefined;
+    let reviewComment: string | undefined;
+
+    if (params.toStatus === "RESOLVED") {
+      const rating = await prisma.rating.findFirst({
+        where: { complaintId: updatedComplaint.id },
+        orderBy: { createdAt: "desc" },
+      });
+      if (rating) {
+        reviewRating = rating.stars;
+        reviewComment = rating.comment || undefined;
+      }
+    }
+
     await notifyBrand({
       brandId: updatedComplaint.brandId,
       type: "STATUS_CHANGED",
       title: `Complaint Status: ${params.toStatus}`,
       body: `Status of complaint "${updatedComplaint.title}" changed from ${complaint.status} to ${params.toStatus}`,
       link: `/brand/complaints/${updatedComplaint.id}`,
+      ...(reviewRating ? { reviewRating } : {}),
+      ...(reviewComment ? { reviewComment } : {}),
     });
   } catch (err) {
     logger.error("Failed to notify brand of status change:", err);
@@ -252,7 +293,7 @@ export async function listComplaints(params: {
       include: {
         brand: {
           include: {
-            subscription: true,
+            subscriptions: true,
           },
         },
         attachments: true,
@@ -330,7 +371,7 @@ export async function searchComplaints(params: {
       include: {
         brand: {
           include: {
-            subscription: true,
+            subscriptions: true,
           },
         },
         attachments: true,
@@ -399,7 +440,7 @@ export async function getComplaintById(id: string) {
     include: {
       brand: {
         include: {
-          subscription: true,
+          subscriptions: true,
         },
       },
       attachments: true,

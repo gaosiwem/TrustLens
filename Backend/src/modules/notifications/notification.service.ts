@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { ensureBrandAlertPrefs } from "../../services/brandAlertPreference.service.js";
 import { EmailOutboxService } from "../../services/emailOutbox.service.js";
+import { EmailTemplates } from "../../services/email/emailTemplates.js";
 
 type NotifyBrandArgs = {
   brandId: string;
@@ -11,18 +12,46 @@ type NotifyBrandArgs = {
     | "NEW_CONSUMER_MESSAGE"
     | "STATUS_CHANGED"
     | "EVIDENCE_ADDED"
-    | "SYSTEM_ALERT";
+    | "SYSTEM_ALERT"
+    | "NEGATIVE_SENTIMENT"
+    | "URGENCY_ALERT"
+    | "SYSTEM_UPDATE";
   title: string;
   body: string;
   link?: string;
   metadata?: Record<string, any>;
+  reviewRating?: number;
+  reviewComment?: string;
 };
 
 /**
  * Notifies a brand (and its members) based on their alert preferences.
+ * - COMPLAINT_CREATED & SYSTEM_ALERT: Sent to ALL brands (Free & Pro).
+ * - All other types: Sent ONLY if the brand has the 'alerts' feature (Pro/Business).
  */
 export async function notifyBrand(args: NotifyBrandArgs) {
   const prefs = await ensureBrandAlertPrefs(args.brandId);
+
+  // Check subscription feature for alerts
+  const subscription = await prisma.brandSubscription.findFirst({
+    where: { brandId: args.brandId, status: "ACTIVE" },
+    include: { plan: true },
+  });
+
+  const hasAlertsFeature =
+    subscription?.plan.features &&
+    (subscription.plan.features as any).alerts === true;
+
+  // Determine if this is a "Free Tier" critical alert
+  const isCriticalAlert =
+    args.type === "COMPLAINT_CREATED" ||
+    args.type === "SYSTEM_ALERT" ||
+    args.type === "SYSTEM_UPDATE";
+
+  // Gate: Only send non-critical alerts if brand has Pro features
+  if (!isCriticalAlert && !hasAlertsFeature) {
+    return;
+  }
 
   const eventMatched =
     (args.type === "COMPLAINT_CREATED" && prefs.complaintCreated) ||
@@ -30,7 +59,10 @@ export async function notifyBrand(args: NotifyBrandArgs) {
     (args.type === "NEW_CONSUMER_MESSAGE" && prefs.newMessages) ||
     (args.type === "STATUS_CHANGED" && prefs.statusChanges) ||
     (args.type === "EVIDENCE_ADDED" && prefs.evidenceAdded) ||
-    args.type === "SYSTEM_ALERT";
+    args.type === "SYSTEM_ALERT" ||
+    args.type === "NEGATIVE_SENTIMENT" ||
+    args.type === "URGENCY_ALERT" ||
+    args.type === "SYSTEM_UPDATE";
 
   const shouldInApp = prefs.inAppEnabled && eventMatched;
   const shouldEmail = prefs.emailEnabled && eventMatched;
@@ -56,34 +88,28 @@ export async function notifyBrand(args: NotifyBrandArgs) {
       include: { user: { select: { email: true } } },
     });
 
-    const toEmails = members.map((m) => m.user.email);
+    const toEmails = new Set(members.map((m) => m.user.email));
 
-    if (toEmails.length > 0) {
-      const subject = `[TrustLens] ${args.title}`;
-      const textBody = `${args.body}\n\n${args.link ?? ""}`.trim();
-      const htmlBody = `
-        <div style="font-family:Arial,sans-serif;line-height:1.5;max-width:600px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-          <div style="background-color:#13b6ec;padding:24px;text-align:center;">
-            <h1 style="color:#ffffff;margin:0;font-size:24px;">TrustLens</h1>
-          </div>
-          <div style="padding:32px;background-color:#ffffff;">
-            <h2 style="margin:0 0 16px 0;color:#111618;">${escapeHtml(args.title)}</h2>
-            <p style="margin:0 0 24px 0;color:#637588;font-size:16px;">${escapeHtml(args.body)}</p>
-            ${
-              args.link
-                ? `<div style="text-align:center;margin-top:32px;">
-                    <a href="${args.link}" style="background-color:#13b6ec;color:#ffffff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">View Details</a>
-                  </div>`
-                : ""
-            }
-          </div>
-          <div style="background-color:#f8fafc;padding:16px;text-align:center;border-top:1px solid #e2e8f0;">
-            <p style="color:#93a2b7;font-size:12px;margin:0;">
-              You are receiving this because alerts are enabled for your brand on TrustLens.
-            </p>
-          </div>
-        </div>
-      `.trim();
+    // Ensure the Brand Manager is included (fallback if they are not in BrandMember table)
+    const brand = await prisma.brand.findUnique({
+      where: { id: args.brandId },
+      include: { manager: { select: { email: true } } },
+    });
+
+    if (brand?.manager?.email) {
+      toEmails.add(brand.manager.email);
+    }
+
+    if (toEmails.size > 0) {
+      const { subject, htmlBody, textBody } =
+        EmailTemplates.getNotificationEmail({
+          type: args.type,
+          title: args.title,
+          body: args.body,
+          ...(args.link ? { link: args.link } : {}),
+          reviewRating: args.reviewRating,
+          reviewComment: args.reviewComment,
+        } as any);
 
       for (const toEmail of toEmails) {
         await EmailOutboxService.enqueueEmail({
@@ -109,16 +135,46 @@ export async function createUserNotification(params: {
   link?: string;
   metadata?: any;
 }) {
-  return prisma.notification.create({
+  const notification = await prisma.notification.create({
     data: {
       userId: params.userId,
       type: params.type,
       title: params.title,
       body: params.body,
-      link: params.link,
+      link: params.link ?? null,
       metadata: params.metadata,
     },
   });
+
+  // Check email preference
+  const prefs = await getNotificationPreferences(params.userId);
+
+  if (prefs.emailEnabled) {
+    const user = await prisma.user.findUnique({
+      where: { id: params.userId },
+      select: { email: true },
+    });
+
+    if (user?.email) {
+      const { subject, htmlBody, textBody } =
+        EmailTemplates.getConsumerNotificationEmail({
+          type: params.type,
+          title: params.title,
+          body: params.body,
+          link: params.link,
+        });
+
+      await EmailOutboxService.enqueueEmail({
+        userId: params.userId,
+        toEmail: user.email,
+        subject,
+        htmlBody,
+        textBody,
+      });
+    }
+  }
+
+  return notification;
 }
 
 export async function getNotifications(
@@ -151,12 +207,14 @@ export async function markAllNotificationsRead(params: {
   userId?: string;
   brandId?: string;
 }) {
+  const where: any = {
+    read: false,
+  };
+  if (params.userId) where.userId = params.userId;
+  if (params.brandId) where.brandId = params.brandId;
+
   return prisma.notification.updateMany({
-    where: {
-      userId: params.userId,
-      brandId: params.brandId,
-      read: false,
-    },
+    where,
     data: { read: true, readAt: new Date() },
   });
 }
@@ -165,12 +223,14 @@ export async function getUnreadCount(params: {
   userId?: string;
   brandId?: string;
 }) {
+  const where: any = {
+    read: false,
+  };
+  if (params.userId) where.userId = params.userId;
+  if (params.brandId) where.brandId = params.brandId;
+
   return prisma.notification.count({
-    where: {
-      userId: params.userId,
-      brandId: params.brandId,
-      read: false,
-    },
+    where,
   });
 }
 

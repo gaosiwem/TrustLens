@@ -37,11 +37,13 @@ export function PlanCard({
   popular,
   isAnnual = false,
 }: PlanCardProps) {
-  const { plan: currentPlan, loading: contextLoading } = useSubscription();
+  const { activePlans, loading: contextLoading } = useSubscription();
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
 
-  const isCurrent = currentPlan === plan;
+  // Disable if already subscribed to this plan, OR if trying to select FREE while having other plans
+  const isCurrent = activePlans.includes(plan);
+  const isDisabled = isCurrent || (plan === "FREE" && activePlans.length > 0);
 
   const handleCheckout = async () => {
     if (plan === "FREE") return;
@@ -109,40 +111,40 @@ export function PlanCard({
   return (
     <div
       className={cn(
-        "relative p-8 rounded-[2.5rem] border bg-card flex flex-col transition-all duration-500",
+        "relative p-6 rounded-2xl border bg-card flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1",
         PLAN_THEMES[plan],
       )}
     >
       {popular && (
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-primary text-primary-foreground text-[10px] font-black tracking-widest rounded-full shadow-lg">
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-[10px] font-bold tracking-widest rounded-full shadow-md uppercase">
           Most Popular
         </div>
       )}
 
-      <div className="mb-8">
-        <h3 className="text-xl font-black mb-2 tracking-tighter italic">
+      <div className="mb-6">
+        <h3 className="text-lg font-bold mb-1 tracking-tight text-foreground">
           {plan}
         </h3>
-        <div className="flex items-baseline gap-1 mb-4">
-          <span className="text-4xl font-black tracking-tighter">{price}</span>
+        <div className="flex items-baseline gap-1 mb-2">
+          <span className="text-3xl font-bold tracking-tight">{price}</span>
           {price !== "Custom" && (
-            <span className="text-muted-foreground text-sm font-bold">
+            <span className="text-muted-foreground text-xs font-medium">
               /{isAnnual ? "yr" : "mo"}
             </span>
           )}
         </div>
-        <p className="text-sm text-muted-foreground font-medium leading-relaxed">
+        <p className="text-xs text-muted-foreground font-medium leading-relaxed">
           {description}
         </p>
       </div>
 
-      <div className="space-y-4 mb-10 grow">
+      <div className="space-y-3 mb-8 grow">
         {features.map((feature) => (
-          <div key={feature} className="flex items-start gap-3">
-            <div className="mt-1 w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <Check className="h-3 w-3 text-primary" />
+          <div key={feature} className="flex items-start gap-2.5">
+            <div className="mt-0.5 w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <Check className="h-2.5 w-2.5 text-primary" />
             </div>
-            <span className="text-sm font-bold text-foreground/80 leading-tight">
+            <span className="text-xs font-medium text-foreground/80 leading-snug">
               {feature}
             </span>
           </div>
@@ -151,18 +153,20 @@ export function PlanCard({
 
       <Button
         onClick={handleCheckout}
-        disabled={loading || isCurrent}
-        variant={isCurrent ? "outline" : "default"}
+        disabled={loading || isDisabled}
+        variant={isDisabled ? "outline" : "default"}
         className={cn(
-          "w-full h-14 rounded-2xl font-black text-lg transition-all active:scale-95",
-          isCurrent &&
-            "border-primary/30 text-primary bg-primary/5 hover:bg-muted",
+          "w-full h-10 rounded-lg font-semibold text-sm transition-all shadow-sm",
+          isDisabled &&
+            "border-primary/20 text-primary bg-primary/5 hover:bg-muted",
         )}
       >
         {loading ? (
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" />
         ) : isCurrent ? (
           "Current Plan"
+        ) : plan === "FREE" && activePlans.length > 0 ? (
+          "Cancel to Downgrade"
         ) : plan === "ENTERPRISE" ? (
           "Contact Sales"
         ) : (
@@ -217,7 +221,7 @@ export function PlanCard({
                 console.error("[DEV] Error:", e);
               }
             }}
-            className="w-full mt-2 text-xs opacity-50 hover:opacity-100 font-bold italic"
+            className="w-full mt-2 text-[10px] opacity-40 hover:opacity-100 font-medium h-6"
           >
             Simulate Payment (Dev)
           </Button>

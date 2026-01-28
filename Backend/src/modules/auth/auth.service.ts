@@ -4,11 +4,30 @@ import { ENV } from "../../config/env.js";
 import { hashPassword, verifyPassword } from "./auth.utils.js";
 import logger from "../../config/logger.js";
 
+import { EmailOutboxService } from "../../services/emailOutbox.service.js";
+import { EmailTemplates } from "../../services/email/emailTemplates.js";
+
 export async function register(email: string, password: string, name?: string) {
   const passwordHash = await hashPassword(password);
   const user = await prisma.user.create({
     data: { email, password: passwordHash, name: name ?? null },
     include: { managedBrands: { select: { id: true }, take: 1 } },
+  });
+
+  // SEND WELCOME EMAIL
+  // TODO: Replace with actual verification token logic when implemented
+  const verificationLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email?token=${user.id}`;
+  const welcomeEmail = EmailTemplates.getWelcomeEmail(
+    user.name || "User",
+    verificationLink,
+  );
+
+  await EmailOutboxService.enqueueEmail({
+    toEmail: user.email,
+    subject: welcomeEmail.subject,
+    htmlBody: welcomeEmail.htmlBody,
+    textBody: welcomeEmail.textBody,
+    brandId: user.managedBrands[0]?.id || "system", // Fallback to 'system' if no brand
   });
 
   const brandId = user.managedBrands[0]?.id;
@@ -111,4 +130,54 @@ export async function googleLogin(email: string, providerId: string) {
       brandId: managedBrand?.id,
     },
   };
+}
+
+export async function requestPasswordReset(email: string) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    // Return success to prevent enumeration
+    return { message: "If an account exists, a reset email has been sent." };
+  }
+
+  const token = jwt.sign(
+    { userId: user.id, type: "password-reset" },
+    ENV.JWT_SECRET,
+    { expiresIn: "1h" },
+  );
+
+  const resetLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${token}`;
+
+  const emailContent = EmailTemplates.getPasswordResetEmail(resetLink);
+
+  await EmailOutboxService.enqueueEmail({
+    toEmail: user.email,
+    subject: emailContent.subject,
+    htmlBody: emailContent.htmlBody,
+    textBody: emailContent.textBody,
+    brandId: "system",
+  });
+
+  return { message: "If an account exists, a reset email has been sent." };
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  try {
+    const decoded = jwt.verify(token, ENV.JWT_SECRET) as any;
+
+    if (decoded.type !== "password-reset") {
+      throw new Error("Invalid token type");
+    }
+
+    const userId = decoded.userId;
+    const passwordHash = await hashPassword(newPassword);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: passwordHash },
+    });
+
+    return { message: "Password updated successfully" };
+  } catch (err) {
+    throw new Error("Invalid or expired reset token");
+  }
 }

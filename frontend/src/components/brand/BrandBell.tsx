@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useNotifications } from "../../hooks/useNotifications";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -18,10 +19,12 @@ export default function BrandBell({ brandId, userId }: BrandBellProps) {
       userId,
       type: brandId ? "brand" : "brand_manager",
     });
+  const router = useRouter();
 
   const handleNotificationClick = (notification: any) => {
     markAsRead(notification.id);
     setIsOpen(false);
+    router.push(`/brand/notifications?id=${notification.id}`);
   };
 
   const handleMarkAllRead = (e: React.MouseEvent) => {
@@ -90,17 +93,14 @@ export default function BrandBell({ brandId, userId }: BrandBellProps) {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`group transition-colors relative ${
+                      className={`group transition-colors relative cursor-pointer ${
                         !notification.read
                           ? "bg-primary/5 hover:bg-primary/10"
                           : "hover:bg-muted/50"
                       }`}
+                      onClick={() => handleNotificationClick(notification)}
                     >
-                      <Link
-                        href={`/brand/notifications?id=${notification.id}`}
-                        onClick={() => handleNotificationClick(notification)}
-                        className="flex gap-3 p-4"
-                      >
+                      <div className="flex gap-3 p-4">
                         <div
                           className={`mt-1 shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                             !notification.read ? "bg-primary/10" : "bg-muted"
@@ -146,7 +146,8 @@ export default function BrandBell({ brandId, userId }: BrandBellProps) {
                               href={notification.link}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleNotificationClick(notification);
+                                markAsRead(notification.id);
+                                setIsOpen(false);
                               }}
                               className="mt-2 text-[11px] font-bold text-primary hover:underline flex items-center gap-1 w-fit"
                             >
@@ -161,7 +162,7 @@ export default function BrandBell({ brandId, userId }: BrandBellProps) {
                         {!notification.read && (
                           <div className="absolute right-4 bottom-4 w-1.5 h-1.5 rounded-full bg-primary" />
                         )}
-                      </Link>
+                      </div>
                     </div>
                   ))}
                 </div>

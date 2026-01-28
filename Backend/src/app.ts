@@ -19,6 +19,7 @@ import billingRoutes from "./modules/billing/billing.routes.js";
 import verificationRoutes from "./modules/verification/verification.routes.js";
 import verificationAdminRoutes from "./modules/verificationAdmin/verificationAdmin.routes.js";
 import governanceRoutes from "./modules/governance/governance.routes.js";
+import analyticsRoutes from "./modules/analytics/analytics.routes.js";
 import { apiLimiter } from "./middleware/rateLimit.middleware.js";
 import {
   errorHandler,
@@ -36,7 +37,7 @@ app.use(requestLogger);
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-  })
+  }),
 );
 app.use(cors());
 app.use(express.json());
@@ -54,7 +55,7 @@ app.get("/debug/routes", (req, res) => {
   app._router.stack.forEach((middleware: any) => {
     if (middleware.route) {
       routes.push(
-        `${Object.keys(middleware.route.methods)} ${middleware.route.path}`
+        `${Object.keys(middleware.route.methods)} ${middleware.route.path}`,
       );
     } else if (middleware.name === "router") {
       middleware.handle.stack.forEach((handler: any) => {
@@ -87,6 +88,7 @@ app.use("/billing", billingRoutes);
 app.use("/verified", verificationRoutes);
 app.use("/admin/verification", verificationAdminRoutes);
 app.use("/admin/governance", governanceRoutes);
+app.use("/analytics", analyticsRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

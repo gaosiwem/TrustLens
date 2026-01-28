@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 async function createTestVerificationRequest() {
   // Find a brand to use
   const brand = await prisma.brand.findFirst({
-    where: { managerId: { not: null } },
+    where: { id: "fd766cd1-7196-4114-9438-ba1ec7c4ad66" },
     include: { manager: true },
   });
 
@@ -49,7 +49,7 @@ async function createTestVerificationRequest() {
   console.log(`Brand: ${brand.name}`);
   console.log(`User: ${brand.manager.email}`);
   console.log(
-    `\nNow you can run 'npx tsx scripts/simulate-payment.ts' to simulate payment`
+    `\nNow you can run 'npx tsx scripts/simulate-payment.ts' to simulate payment`,
   );
 }
 

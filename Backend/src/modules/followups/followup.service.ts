@@ -19,27 +19,40 @@ export async function addFollowup(params: {
     select: { role: true },
   });
 
-  // Check complaint status before allowing response
+  const isBrand = (user?.role as any) === "BRAND";
+
+  // 1. Fetch complaint data first (outside transaction)
   const complaint = await prisma.complaint.findUnique({
     where: { id: params.complaintId },
-    select: { status: true },
+    select: {
+      id: true,
+      status: true,
+      brandId: true,
+      userId: true,
+      title: true,
+    },
   });
 
   if (!complaint) {
     throw new Error("Complaint not found");
   }
 
-  // Prevent brand users from responding to RESOLVED or REJECTED complaints
-  if ((user?.role as any) === "BRAND") {
-    if (complaint.status === "RESOLVED" || complaint.status === "REJECTED") {
-      throw new Error(
-        `Cannot respond to ${complaint.status.toLowerCase()} complaints`,
-      );
-    }
+  // 2. Role-based status validation
+  if (
+    isBrand &&
+    (complaint.status === "RESOLVED" || complaint.status === "REJECTED")
+  ) {
+    throw new Error(
+      `Cannot respond to ${complaint.status.toLowerCase()} complaints`,
+    );
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const followup = await tx.followup.create({
+  // 3. Prepare Logic for Sequential Transaction
+  const operations: any[] = [];
+
+  // Operation 1: Create Followup (Always)
+  operations.push(
+    prisma.followup.create({
       data: {
         complaintId: params.complaintId,
         userId: params.userId,
@@ -47,147 +60,104 @@ export async function addFollowup(params: {
       },
       include: {
         user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          },
+          select: { id: true, email: true, name: true },
         },
       },
-    });
+    }),
+  );
 
-    // If a BRAND user responds, update complaint status to RESPONDED
-    if ((user?.role as any) === "BRAND") {
-      const complaint = await tx.complaint.findUnique({
+  // Operation 2 & 3: Update Status & History (Conditional)
+  let nextStatus: string | null = null;
+  if (isBrand) {
+    if (complaint.status !== "RESPONDED") {
+      nextStatus = "RESPONDED";
+    }
+  } else {
+    if (complaint.status === "RESPONDED") {
+      nextStatus = "UNDER_REVIEW";
+    } else if (complaint.status === "NEEDS_INFO") {
+      nextStatus = "INFO_PROVIDED";
+    }
+  }
+
+  if (nextStatus) {
+    operations.push(
+      prisma.complaint.update({
         where: { id: params.complaintId },
-        select: { status: true },
-      });
+        data: { status: nextStatus as any },
+      }),
+    );
 
-      if (complaint && complaint.status !== "RESPONDED") {
-        await tx.complaint.update({
-          where: { id: params.complaintId },
-          data: { status: "RESPONDED" },
-        });
+    operations.push(
+      prisma.complaintStatusHistory.create({
+        data: {
+          complaintId: params.complaintId,
+          fromStatus: complaint.status,
+          toStatus: nextStatus as any,
+          changedBy: params.userId,
+        },
+      }),
+    );
+  }
 
-        await tx.complaintStatusHistory.create({
-          data: {
-            complaintId: params.complaintId,
-            fromStatus: complaint.status,
-            toStatus: "RESPONDED",
-            changedBy: params.userId,
-          },
-        });
-      }
+  // 4. Execute Transaction
+  const results = await prisma.$transaction(operations);
+  const followup = results[0]; // First result is always the followup
+
+  // SIDE EFFECTS (Outside transaction)
+  const complaintData = complaint;
+
+  // 1. Notifications
+  if (!isBrand) {
+    // Run in background to prevent blocking response
+    notifyBrand({
+      brandId: complaintData.brandId,
+      type: "NEW_CONSUMER_MESSAGE",
+      title: "New Message from Consumer",
+      body: `A consumer has sent a new message regarding complaint: ${complaintData.title}`,
+      link: `/brand/complaints/${params.complaintId}`,
+    }).catch((err) =>
+      logger.error("Failed to send followup notification (background):", err),
+    );
+  } else {
+    createUserNotification({
+      userId: complaintData.userId,
+      type: "BRAND_RESPONSE",
+      title: "Brand Responded",
+      body: `A brand has responded to your complaint: ${complaintData.title}`,
+      link: `/dashboard/complaints/${params.complaintId}`,
+    }).catch((err) =>
+      logger.error("Failed to create user notification (background):", err),
+    );
+  }
+
+  // 2. Sentiment Analysis
+  try {
+    const queue = getSentimentQueue();
+    if (queue) {
+      queue
+        .add("followup-sentiment", {
+          brandId: complaintData.brandId,
+          complaintId: params.complaintId,
+          sourceType: isBrand ? "BRAND_RESPONSE" : "CONSUMER_MESSAGE",
+          sourceId: followup.id,
+          text: params.comment,
+        })
+        .catch((err) => logger.error("Sentiment queue add failed:", err));
     }
+  } catch (err) {
+    logger.error("Failed to access sentiment queue:", err);
+  }
 
-    // If a CONSUMER responds
-    if ((user?.role as any) !== "BRAND") {
-      const complaint = await tx.complaint.findUnique({
-        where: { id: params.complaintId },
-        select: { status: true, brandId: true, title: true },
-      });
-
-      if (complaint) {
-        let nextStatus: string | null = null;
-        if (complaint.status === "RESPONDED") {
-          nextStatus = "UNDER_REVIEW";
-        } else if (complaint.status === "NEEDS_INFO") {
-          nextStatus = "INFO_PROVIDED";
-        }
-
-        if (nextStatus) {
-          await tx.complaint.update({
-            where: { id: params.complaintId },
-            data: { status: nextStatus as any },
-          });
-
-          await tx.complaintStatusHistory.create({
-            data: {
-              complaintId: params.complaintId,
-              fromStatus: complaint.status,
-              toStatus: nextStatus as any,
-              changedBy: params.userId,
-            },
-          });
-        }
-
-        // SPRINT 28: Notify Brand
-        await notifyBrand({
-          brandId: complaint.brandId,
-          type: "NEW_CONSUMER_MESSAGE",
-          title: "New Message from Consumer",
-          body: `A consumer has sent a new message regarding complaint: ${complaint.title}`,
-          link: `/brand/complaints/${params.complaintId}`,
-        });
-      }
-    }
-
-    // If a BRAND user responds, notify consumer
-    if ((user?.role as any) === "BRAND") {
-      const complaint = await tx.complaint.findUnique({
-        where: { id: params.complaintId },
-        select: { userId: true, title: true },
-      });
-
-      if (complaint) {
-        await createUserNotification({
-          userId: complaint.userId,
-          type: "BRAND_RESPONSE",
-          title: "Brand Responded",
-          body: `A brand has responded to your complaint: ${complaint.title}`,
-          link: `/dashboard/complaints/${params.complaintId}`,
-        });
-      }
-    }
-
-    // Sprint 29: Sentiment Analysis for the new followup
-    // Re-fetch complaint to ensure we have the brandId if needed,
-    // though we already fetched it earlier in the block.
-    // Let's use the complaint from the outer scope if possible, but
-    // it was fetched inside the transaction and not always assigned to a shared variable.
-    // In the CONSUMER path (line 83), 'complaint' has brandId.
-    // In the BRAND path (line 58), 'complaint' only has status.
-
-    // To be safe and clean, let's fetch the minimal complaint info needed for sentiment.
-    const sentimentComplaint = await tx.complaint.findUnique({
-      where: { id: params.complaintId },
-      select: { brandId: true },
-    });
-
-    if (sentimentComplaint) {
-      const queue = getSentimentQueue();
-      if (queue) {
-        queue
-          .add("followup-sentiment", {
-            brandId: sentimentComplaint.brandId,
-            complaintId: params.complaintId,
-            sourceType:
-              (user?.role as any) === "BRAND"
-                ? "BRAND_RESPONSE"
-                : "CONSUMER_MESSAGE",
-            sourceId: followup.id,
-            text: params.comment,
-          })
-          .catch((err) => {
-            logger.error("Failed to add followup to sentiment queue:", err);
-          });
-      }
-    }
-
-    return followup;
-  });
-
-  // Post-transaction analytical side-effects for BRAND responses
-  if ((user?.role as any) === "BRAND") {
+  // 3. Analytics (Existing logic)
+  if (isBrand) {
     try {
-      // SPRINT 25: Evaluate Authenticity (Background task-like)
       await evaluateAuthenticity({
-        responseId: result.id,
+        responseId: followup.id,
         businessUserId: params.userId,
         comment: params.comment,
       });
 
-      // SPRINT 26: Update Brand Trust & Enforcement
       const brand = await prisma.brand.findFirst({
         where: { managerId: params.userId },
       });
@@ -196,12 +166,11 @@ export async function addFollowup(params: {
         await processEnforcement("BRAND", brand.id);
       }
     } catch (error) {
-      console.error("Followup analytics failed (background):", error);
-      // We don't rethrow here so the user response is still preserved
+      logger.error("Followup analytics failed (background):", error);
     }
   }
 
-  return result;
+  return followup;
 }
 
 export async function getFollowupsByComplaint(complaintId: string) {

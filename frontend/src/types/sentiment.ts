@@ -8,6 +8,7 @@ export type BrandSentimentDailyRow = {
   positivePct: number;
   negativePct: number;
   neutralPct: number;
+  avgStars: number | null;
   topTopics: string[];
   updatedAt: string;
 };
@@ -20,7 +21,8 @@ export type SentimentEvent = {
     | "COMPLAINT"
     | "BRAND_RESPONSE"
     | "CONSUMER_MESSAGE"
-    | "SYSTEM_NOTE";
+    | "SYSTEM_NOTE"
+    | "RATING";
   sourceId: string | null;
   label:
     | "VERY_NEGATIVE"
@@ -36,6 +38,11 @@ export type SentimentEvent = {
   createdAt: string;
   model: string;
   moderationFlagged: boolean;
+  rating?: {
+    id: string;
+    stars: number;
+    comment: string | null;
+  } | null;
 };
 
 export type ComplaintSentimentSnapshot = {

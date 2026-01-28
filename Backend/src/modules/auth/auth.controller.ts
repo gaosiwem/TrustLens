@@ -30,3 +30,26 @@ export async function googleLoginController(req: Request, res: Response) {
     res.status(400).json({ error: err.message });
   }
 }
+
+export async function requestPasswordResetController(
+  req: Request,
+  res: Response,
+) {
+  try {
+    const { email } = req.body;
+    const result = await authService.requestPasswordReset(email);
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+export async function resetPasswordController(req: Request, res: Response) {
+  try {
+    const { token, newPassword } = req.body;
+    const result = await authService.resetPassword(token, newPassword);
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}
