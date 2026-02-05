@@ -2,12 +2,13 @@ import type { Request, Response } from "express";
 import prisma from "../../lib/prisma.js";
 import { billingService } from "../billing/billing.service.js";
 import { issuePaidInvoice } from "../billing/invoice.service.js";
+import logger from "../../config/logger.js";
 
 export async function createCheckoutSession(req: any, res: Response) {
   try {
     const { planCode } = req.body;
     let brandId = req.user.brandId;
-    console.log(`[Checkout] Request for plan: ${planCode}, brand: ${brandId}`);
+    logger.info(`[Checkout] Request for plan: ${planCode}, brand: ${brandId}`);
 
     // For BRAND users, look up their managed brand
     if (!brandId && req.user.role === "BRAND") {
@@ -30,10 +31,10 @@ export async function createCheckoutSession(req: any, res: Response) {
     });
 
     if (!plan) {
-      console.log(`[Checkout] Plan NOT found for code: ${planCode}`);
+      logger.warn(`[Checkout] Plan NOT found for code: ${planCode}`);
       return res.status(404).json({ error: "Subscription plan not found." });
     }
-    console.log(
+    logger.info(
       `[Checkout] Plan found: ${plan.name}, price: ${plan.monthlyPrice}`,
     );
 
@@ -74,7 +75,7 @@ export async function createCheckoutSession(req: any, res: Response) {
 
     res.json(payload);
   } catch (error) {
-    console.error("Error creating checkout session:", error);
+    logger.error("Error creating checkout session:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -85,7 +86,7 @@ export async function handleWebhook(req: Request, res: Response) {
     const receivedSignature = data.signature;
 
     if (!billingService.verifySignature(data, receivedSignature)) {
-      console.warn("Invalid PayFast signature received.");
+      logger.warn("Invalid PayFast signature received.");
       return res.status(400).end();
     }
 
@@ -106,7 +107,7 @@ export async function handleWebhook(req: Request, res: Response) {
     });
 
     if (!plan) {
-      console.error(`Plan ${planCode} not found during webhook processing.`);
+      logger.error(`Plan ${planCode} not found during webhook processing.`);
       return res.status(400).end();
     }
 
@@ -208,7 +209,7 @@ export async function handleWebhook(req: Request, res: Response) {
 
     res.status(200).end();
   } catch (error) {
-    console.error("Error handling PayFast webhook:", error);
+    logger.error("Error handling PayFast webhook:", error);
     res.status(500).end();
   }
 }
@@ -275,22 +276,22 @@ export async function getCurrentSubscription(req: any, res: Response) {
       activePlans: subscriptions.map((s) => s.plan.code),
     });
   } catch (error) {
-    console.error("Error getting current subscription:", error);
+    logger.error("Error getting current subscription:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
 
 export async function activateDevSubscription(req: any, res: Response) {
-  console.log("[DEV_ACTIVATE] Starting dev subscription activation...");
-  console.log("[DEV_ACTIVATE] User:", req.user);
-  console.log("[DEV_ACTIVATE] Body:", req.body);
+  logger.info("[DEV_ACTIVATE] Starting dev subscription activation...");
+  logger.debug("[DEV_ACTIVATE] User:", req.user);
+  logger.debug("[DEV_ACTIVATE] Body:", req.body);
 
   // Only allow in development or for SUPER_ADMIN
   if (
     process.env.NODE_ENV === "production" &&
     req.user?.role !== "SUPER_ADMIN"
   ) {
-    console.log("[DEV_ACTIVATE] Blocked: production mode without SUPER_ADMIN");
+    logger.warn("[DEV_ACTIVATE] Blocked: production mode without SUPER_ADMIN");
     return res.status(403).json({ error: "Unauthorized" });
   }
 
@@ -298,11 +299,11 @@ export async function activateDevSubscription(req: any, res: Response) {
     const { planCode } = req.body;
     let brandId = req.user.brandId;
 
-    console.log(`[DEV_ACTIVATE] Initial brandId from token: ${brandId}`);
-    console.log(`[DEV_ACTIVATE] planCode: ${planCode}`);
+    logger.debug(`[DEV_ACTIVATE] Initial brandId from token: ${brandId}`);
+    logger.debug(`[DEV_ACTIVATE] planCode: ${planCode}`);
 
     if (!brandId && req.user.role === "BRAND") {
-      console.log(
+      logger.debug(
         "[DEV_ACTIVATE] Looking up managed brand for user:",
         req.user.userId,
       );
@@ -311,25 +312,25 @@ export async function activateDevSubscription(req: any, res: Response) {
         select: { id: true, name: true },
         orderBy: { createdAt: "desc" },
       });
-      console.log("[DEV_ACTIVATE] Found managed brand:", managedBrand);
+      logger.debug("[DEV_ACTIVATE] Found managed brand:", managedBrand);
       brandId = managedBrand?.id;
     }
 
     if (!brandId) {
-      console.error("[DEV_ACTIVATE] ERROR: No brand associated with user");
+      logger.error("[DEV_ACTIVATE] ERROR: No brand associated with user");
       return res.status(400).json({ error: "No brand associated" });
     }
 
-    console.log(`[DEV_ACTIVATE] Using brandId: ${brandId}`);
+    logger.debug(`[DEV_ACTIVATE] Using brandId: ${brandId}`);
 
     const plan = await prisma.subscriptionPlan.findUnique({
       where: { code: planCode },
     });
 
-    console.log("[DEV_ACTIVATE] Found plan:", plan);
+    logger.debug("[DEV_ACTIVATE] Found plan:", plan);
 
     if (!plan) {
-      console.error(
+      logger.error(
         `[DEV_ACTIVATE] ERROR: Plan not found for code: ${planCode}`,
       );
       return res.status(404).json({ error: "Plan not found" });
@@ -340,10 +341,10 @@ export async function activateDevSubscription(req: any, res: Response) {
     const endsAt = new Date();
     endsAt.setDate(endsAt.getDate() + durationDays);
 
-    console.log(
+    logger.debug(
       `[DEV_ACTIVATE] isVerifiedPlan: ${isVerifiedPlan}, duration: ${durationDays} days`,
     );
-    console.log(`[DEV_ACTIVATE] Upserting BrandSubscription...`);
+    logger.info(`[DEV_ACTIVATE] Upserting BrandSubscription...`);
 
     // Find existing subscription for this brand + plan combination
     const existingSub = await prisma.brandSubscription.findFirst({
@@ -374,7 +375,7 @@ export async function activateDevSubscription(req: any, res: Response) {
       });
     }
 
-    console.log("[DEV_ACTIVATE] BrandSubscription upserted:", subscription);
+    logger.debug("[DEV_ACTIVATE] BrandSubscription upserted:", subscription);
 
     // Update Brand flags (widgetPlan and isVerified)
     const widgetPlans = ["PRO", "BUSINESS", "ENTERPRISE", "FREE"];
@@ -389,14 +390,14 @@ export async function activateDevSubscription(req: any, res: Response) {
         where: { id: brandId },
         data: updateData,
       });
-      console.log(
+      logger.info(
         `[DEV_ACTIVATE] Brand updated: ${JSON.stringify(updateData)}`,
       );
     }
 
     // Handle Verified subscription history
     if (isVerifiedPlan) {
-      console.log(
+      logger.info(
         "[DEV_ACTIVATE] Handling verified plan logic (Active subscription state)...",
       );
 
@@ -406,10 +407,10 @@ export async function activateDevSubscription(req: any, res: Response) {
         orderBy: { createdAt: "desc" },
       });
 
-      console.log("[DEV_ACTIVATE] Latest VerifiedRequest:", latestRequest);
+      logger.debug("[DEV_ACTIVATE] Latest VerifiedRequest:", latestRequest);
 
       if (latestRequest) {
-        console.log("[DEV_ACTIVATE] Upserting VerifiedSubscription...");
+        logger.info("[DEV_ACTIVATE] Upserting VerifiedSubscription...");
         const verifiedSub = await prisma.verifiedSubscription.upsert({
           where: { id: `DEV_${latestRequest.id}` },
           update: {
@@ -430,24 +431,24 @@ export async function activateDevSubscription(req: any, res: Response) {
             amount: plan.monthlyPrice,
           },
         });
-        console.log(
+        logger.debug(
           "[DEV_ACTIVATE] VerifiedSubscription upserted:",
           verifiedSub,
         );
       } else {
-        console.log(
+        logger.info(
           "[DEV_ACTIVATE] No VerifiedRequest found, skipping VerifiedSubscription",
         );
       }
     }
 
-    console.log("[DEV_ACTIVATE] SUCCESS - responding with subscription");
+    logger.info("[DEV_ACTIVATE] SUCCESS - responding with subscription");
     res.json({
       message: `Plan ${planCode} activated for development.`,
       subscription,
     });
   } catch (error) {
-    console.error("[DEV_ACTIVATE] ERROR:", error);
+    logger.error("[DEV_ACTIVATE] ERROR:", error);
     res.status(500).json({ error: "Failed to activate dev subscription" });
   }
 }

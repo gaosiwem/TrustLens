@@ -11,6 +11,7 @@ import {
   getBrandPublicProfile,
 } from "./brand.service.js";
 import { getLatestTrustScore } from "../trust/trust.service.js";
+import crypto from "crypto";
 
 export async function createBrandController(req: Request, res: Response) {
   try {
@@ -391,7 +392,7 @@ export async function createBrandWidgetKeyController(
         .json({ error: "Maximum of 5 active keys allowed" });
     }
 
-    const key = `pk_${Math.random().toString(36).substring(2, 15)}_${Math.random().toString(36).substring(2, 15)}`;
+    const key = `pk_${crypto.randomBytes(24).toString("hex")}`;
 
     const newKey = await prisma.widgetKey.create({
       data: {

@@ -16,7 +16,7 @@ export async function register(email: string, password: string, name?: string) {
 
   // SEND WELCOME EMAIL
   // TODO: Replace with actual verification token logic when implemented
-  const verificationLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email?token=${user.id}`;
+  const verificationLink = `${ENV.FRONTEND_URL}/verify-email?token=${user.id}`;
   const welcomeEmail = EmailTemplates.getWelcomeEmail(
     user.name || "User",
     verificationLink,
@@ -59,6 +59,13 @@ export async function login(email: string, password: string) {
   if (!user.password) {
     logger.warn(`Failed login attempt (no password, likely OAuth): ${email}`);
     throw new Error("Invalid credentials");
+  }
+
+  if (user.password === "OAUTH_USER") {
+    logger.warn(
+      `Failed login attempt (OAuth user tried password login): ${email}`,
+    );
+    throw new Error("Please log in with Google");
   }
 
   const valid = await verifyPassword(password, user.password);
@@ -146,7 +153,7 @@ export async function requestPasswordReset(email: string) {
     { expiresIn: "1h" },
   );
 
-  const resetLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/auth/reset-password?token=${token}`;
+  const resetLink = `${ENV.FRONTEND_URL}/auth/reset-password?token=${token}`;
 
   const emailContent = EmailTemplates.getPasswordResetEmail(resetLink);
 

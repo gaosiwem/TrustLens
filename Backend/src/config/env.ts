@@ -8,4 +8,5 @@ export const ENV = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10 MB
   UPLOAD_DIR: process.env.UPLOAD_DIR || "uploads",
+  FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
 };

@@ -7,16 +7,41 @@ async function main() {
   console.log("Start seeding production-ready dummy data...");
 
   // 1. Clear existing data
+  console.log("Cleaning up database...");
   await prisma.paymentTransaction.deleteMany();
+  await prisma.invoiceItem.deleteMany();
+  await prisma.invoice.deleteMany();
   await prisma.brandSubscription.deleteMany();
   await prisma.subscriptionPlan.deleteMany();
+
   await prisma.followup.deleteMany();
   await prisma.rating.deleteMany();
   await prisma.complaintStatusHistory.deleteMany();
   await prisma.attachment.deleteMany();
+  await prisma.escalationCase.deleteMany();
+  await prisma.complaintSentimentSnapshot.deleteMany();
   await prisma.complaint.deleteMany();
+
   await prisma.reputationScore.deleteMany();
+
+  await prisma.brandAlertPreference.deleteMany();
+  await prisma.brandBillingProfile.deleteMany();
+  await prisma.brandMember.deleteMany();
+  await prisma.brandSLAConfig.deleteMany();
+  await prisma.brandDailyMetrics.deleteMany();
+  await prisma.widgetKey.deleteMany();
+  await prisma.brandLocation.deleteMany();
+  await prisma.verifiedSubscription.deleteMany();
+  await prisma.verifiedRequest.deleteMany();
+  await prisma.brandClaim.deleteMany();
+  await prisma.brandSentimentDaily.deleteMany();
+  await prisma.sentimentEvent.deleteMany();
+
   await prisma.brand.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.notificationPreference.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.mFA.deleteMany();
   await prisma.user.deleteMany();
 
   const hashedDefaultPassword = await bcrypt.hash("Password123!", 10);
