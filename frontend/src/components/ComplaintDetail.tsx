@@ -10,8 +10,22 @@ import BrandLogo from "./BrandLogo";
 import StatusBadge from "./StatusBadge";
 import clsx from "clsx";
 import RatingStars from "./RatingStars";
-import { BadgeCheck } from "lucide-react";
+import {
+  BadgeCheck,
+  Calendar,
+  Clock,
+  Paperclip,
+  MessageSquare,
+  Shield,
+  User,
+  AlertCircle,
+  CheckCircle2,
+  MoreHorizontal,
+  LayoutDashboard,
+} from "lucide-react";
 import StandardLoader from "./StandardLoader";
+import { SLATimer } from "./brand/SLATimer";
+import { AssigneeSelect } from "./brand/AssigneeSelect";
 
 interface ComplaintDetailProps {
   id: string;
@@ -43,7 +57,6 @@ export function ComplaintDetail({ id }: ComplaintDetailProps) {
       const res = await axios.get(`${apiUrl}/complaints/${id}`, { headers });
       setComplaint(res.data);
 
-      // Fetch user's existing rating if logged in and not a brand user
       if (session?.accessToken && (session?.user as any)?.role !== "BRAND") {
         try {
           const ratingRes = await axios.get(`${apiUrl}/ratings/${id}/user`, {
@@ -51,7 +64,6 @@ export function ComplaintDetail({ id }: ComplaintDetailProps) {
           });
           setExistingRating(ratingRes.data);
         } catch (error) {
-          // No rating exists yet, which is fine
           setExistingRating(null);
         }
       }
@@ -83,7 +95,7 @@ export function ComplaintDetail({ id }: ComplaintDetailProps) {
         },
       );
       setResponse("");
-      await fetchComplaint(); // Refresh to show new response and status
+      await fetchComplaint();
       toast.success("Response submitted successfully!");
     } catch (error) {
       console.error("Failed to submit response:", error);
@@ -116,7 +128,7 @@ export function ComplaintDetail({ id }: ComplaintDetailProps) {
       setUserRating(0);
       setRatingComment("");
       toast.success("Rating submitted successfully!");
-      await fetchComplaint(); // Refresh to show updated data
+      await fetchComplaint();
     } catch (error) {
       console.error("Failed to submit rating:", error);
       toast.error("Failed to submit rating");
@@ -140,385 +152,332 @@ export function ComplaintDetail({ id }: ComplaintDetailProps) {
   const isBrandUser = (session?.user as any)?.role === "BRAND";
 
   return (
-    <div className="flex-1 p-6 bg-card rounded-2xl border border-border shadow-sm space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <BrandLogo
-            brandName={complaint.brand?.name || "Brand"}
-            brandLogoUrl={complaint.brand?.logoUrl}
-            className="w-12 h-12 rounded-xl object-contain bg-white border border-border"
-          />
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-bold text-2xl">
-                {complaint.brand?.name || "Unknown Brand"}
-              </h2>
-              {complaint.brand?.isVerified &&
-                (!complaint.brand?.subscription?.endsAt ||
-                  new Date(complaint.brand?.subscription?.endsAt) >
-                    new Date()) && (
-                  <BadgeCheck className="w-6 h-6 text-white fill-primary" />
+    <div className="bg-card rounded-3xl border border-border shadow-sm flex flex-col">
+      {/* 1. Header Section */}
+      <div className="p-8 border-b border-border relative overflow-hidden">
+        {/* Subtle bg wash */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+
+        <div className="relative flex flex-col md:flex-row justify-between gap-6">
+          <div className="flex items-start gap-6">
+            <BrandLogo
+              brandName={complaint.brand?.name || "Brand"}
+              brandLogoUrl={complaint.brand?.logoUrl}
+              className="w-20 h-20 rounded-2xl object-contain bg-white border border-border/50 shadow-sm grow-0 shrink-0"
+            />
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                  {complaint.brand?.name || "Unknown Brand"}
+                </h1>
+                {complaint.brand?.isVerified && (
+                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-black text-primary uppercase tracking-widest">
+                    <BadgeCheck className="w-3 h-3 " />
+                    Verified
+                  </div>
                 )}
+              </div>
+              <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                  ID:{" "}
+                  <span className="font-mono text-foreground/70">
+                    #{complaint.id.slice(0, 8)}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" />
+                  {new Date(complaint.createdAt).toLocaleDateString()}
+                </span>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Filed on {new Date(complaint.createdAt).toLocaleDateString()}
-            </p>
+          </div>
+
+          <div className="flex flex-col items-end gap-3 min-w-[150px]">
+            <StatusBadge status={complaint.status} />
+            {complaint.ratings?.find(
+              (r: any) => r.userId === complaint.userId,
+            ) && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-full border border-border/50">
+                <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                  Rated
+                </span>
+                <RatingStars
+                  max={5}
+                  initialRating={
+                    complaint.ratings.find(
+                      (r: any) => r.userId === complaint.userId,
+                    ).stars
+                  }
+                  readOnly={true}
+                  size="sm"
+                  color={complaint.brand?.widgetStyles?.starColor}
+                />
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-[10px] font-bold tracking-widest text-muted-foreground">
-              Status
-            </span>
-            <StatusBadge status={complaint.status} />
-          </div>
-          {/* Public Consumer Rating */}
-          {complaint.ratings?.find(
-            (r: any) => r.userId === complaint.userId,
-          ) && (
-            <div className="flex flex-col items-end mt-1">
-              <span className="text-[10px] font-bold tracking-widest text-muted-foreground mb-1">
-                Consumer Rating
+      </div>
+
+      {/* 2. Action Toolbar (Brand Only) */}
+      {isBrandUser && (
+        <div className="bg-muted/30 border-b border-border px-8 py-4 flex flex-wrap items-center gap-8 shadow-inner rounded-b-3xl sm:rounded-none z-20 relative">
+          <AssigneeSelect
+            complaintId={complaint.id}
+            brandId={complaint.brandId}
+            currentAssigneeId={complaint.assignedToId}
+          />
+
+          {/* SLA Timer */}
+          {complaint.slaDeadline && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                SLA Time Remaining
               </span>
-              <RatingStars
-                max={5}
-                initialRating={
-                  complaint.ratings.find(
-                    (r: any) => r.userId === complaint.userId,
-                  ).stars
-                }
-                readOnly={true}
+              <SLATimer
+                deadline={complaint.slaDeadline}
+                status={complaint.slaStatus}
               />
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-sm font-bold text-muted-foreground tracking-wider mb-2">
-            Issue Description
-          </h3>
-          <div className="p-4 rounded-xl bg-muted/30 border border-border">
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+      {/* 3. Main Body */}
+      <div className="p-8 space-y-10">
+        {/* Issue & AI Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          {/* Left: Description */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 border-b border-border/50 pb-3">
+              <AlertCircle className="w-4 h-4 text-primary" />
+              <h2 className="text-xs font-bold tracking-widest uppercase text-muted-foreground">
+                Complaint Details
+              </h2>
+            </div>
+            <div className="prose prose-sm max-w-none text-foreground leading-loose whitespace-pre-wrap">
               {complaint.description}
-            </p>
+            </div>
+
+            {/* Attachments */}
+            {complaint.attachments && complaint.attachments.length > 0 && (
+              <div className="pt-4">
+                <h3 className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-2">
+                  <Paperclip className="w-3.5 h-3.5" /> Attachments
+                </h3>
+                <AttachmentsPreview
+                  files={complaint.attachments.map((a: any) => a.fileName)}
+                />
+              </div>
+            )}
           </div>
-        </div>
-        {complaint.aiSummary && (
-          <div className="relative group">
-            {/* Decorative background glow */}
-            <div className="absolute -inset-0.5 bg-linear-to-r from-primary/20 to-cyan-500/20 rounded-2xl blur-sm group-hover:blur-md transition-all duration-500 opacity-50" />
 
-            <div className="relative overflow-hidden rounded-2xl bg-card border border-primary/20 shadow-sm transition-all duration-300 group-hover:shadow-md">
-              {/* Subtle top gradient line */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary/40 via-cyan-500/40 to-primary/40" />
-
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                      <span className="material-symbols-outlined text-base animate-pulse">
-                        auto_awesome
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black tracking-tight uppercase italic text-primary">
-                        AI Intelligent Summary
-                      </h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">
-                        Precision Content Generation
-                      </p>
-                    </div>
-                  </div>
-                  <div className="px-2 py-1 rounded-full bg-primary/5 border border-primary/10">
-                    <span className="text-[10px] font-black text-primary italic uppercase">
-                      TrustLens Intelligence
+          {/* Right: AI Analysis */}
+          {complaint.aiSummary && (
+            <div className="relative rounded-2xl overflow-hidden bg-primary/5 border border-primary/10 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-white shadow-sm text-primary">
+                    <span className="material-symbols-outlined text-lg animate-pulse">
+                      auto_awesome
                     </span>
                   </div>
+                  <h3 className="text-sm font-bold text-foreground">
+                    AI Intelligence
+                  </h3>
                 </div>
-
-                <div className="relative">
-                  <span className="absolute -left-3 -top-2 text-5xl text-primary/10 font-serif italic select-none">
-                    "
-                  </span>
-                  <div className="text-sm leading-relaxed text-foreground/90 font-medium relative z-10 pl-4 pr-2 space-y-3">
-                    {complaint.aiSummary
-                      .split("\n")
-                      .map((line: string, i: number) => (
-                        <p
-                          key={i}
-                          className={clsx(
-                            line.trim().startsWith("-") ||
-                              line.trim().startsWith("•")
-                              ? "pl-4 -indent-4"
-                              : "",
-                          )}
-                        >
-                          {line}
-                        </p>
-                      ))}
-                  </div>
-                  <span className="absolute -right-1 -bottom-3 text-5xl text-primary/10 font-serif italic select-none">
-                    "
-                  </span>
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-primary/10 flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="flex -space-x-1.5">
-                      {[1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className="w-5 h-5 rounded-full border-2 border-card bg-primary/20 flex items-center justify-center"
-                        >
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground font-bold italic tracking-tight">
-                      Neutral AI Analysis • Precision Resolution Engine
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary/70">
+                  Generated Insight
+                </span>
+              </div>
+              <div className="italic text-sm text-foreground/80 leading-relaxed space-y-2">
+                {complaint.aiSummary
+                  .split("\n")
+                  .map((line: string, i: number) => (
+                    <p
+                      key={i}
+                      className={clsx(line.trim().startsWith("-") && "pl-4")}
+                    >
+                      {line}
                     </p>
-                  </div>
-
-                  <div className="flex gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-pulse [animation-duration:2s]" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-pulse [animation-duration:2s] [animation-delay:0.5s]" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-pulse [animation-duration:2s] [animation-delay:1s]" />
-                  </div>
-                </div>
+                  ))}
               </div>
             </div>
-          </div>
-        )}
-        <AttachmentsPreview
-          files={complaint.attachments?.map((a: any) => a.fileName) || []}
-        />
-      </div>
+          )}
+        </div>
 
-      {/* Conversation / Followups */}
-      <div className="space-y-4 pt-6 border-t border-border">
-        <h3 className="text-sm font-bold text-muted-foreground tracking-wider">
-          Resolution Timeline
-        </h3>
-        <div className="space-y-4">
-          {complaint.followups?.length === 0 ? (
-            <p className="text-sm italic text-muted-foreground bg-muted/20 p-4 rounded-xl text-center">
-              No responses yet.
-            </p>
-          ) : (
-            complaint.followups.map((f: any) => (
+        {/* Timeline Section */}
+        <div>
+          <div className="flex items-center gap-2 border-b border-border pb-4 mb-6">
+            <MessageSquare className="w-4 h-4 text-primary" />
+            <h2 className="text-xs font-bold tracking-widest uppercase text-muted-foreground">
+              Resolution Timeline
+            </h2>
+          </div>
+
+          <div className="space-y-6 max-w-3xl mx-auto">
+            {complaint.followups?.length === 0 && (
+              <div className="text-center py-8 bg-muted/20 rounded-2xl border border-dashed border-border mb-8">
+                <p className="text-sm text-muted-foreground">
+                  No responses yet.
+                </p>
+              </div>
+            )}
+
+            {complaint.followups?.map((f: any) => (
               <div
                 key={f.id}
                 className={clsx(
-                  "p-4 rounded-2xl border",
-                  f.user?.role === "BRAND"
-                    ? "bg-primary/5 border-primary/20 ml-8"
-                    : "bg-muted/30 border-border mr-8",
+                  "flex gap-5",
+                  f.user?.role === "BRAND" ? "flex-row-reverse" : "",
                 )}
               >
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-bold tracking-tight">
-                    {f.user?.role === "BRAND"
-                      ? complaint.brand?.name || "Brand"
-                      : f.user?.name || "You"}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {new Date(f.createdAt).toLocaleString()}
-                  </span>
+                <div
+                  className={clsx(
+                    "w-10 h-10 rounded-full flex items-center justify-center shrink-0 border z-10 shadow-sm",
+                    f.user?.role === "BRAND"
+                      ? "bg-card border-primary text-primary"
+                      : "bg-card border-border text-muted-foreground",
+                  )}
+                >
+                  {f.user?.role === "BRAND" ? (
+                    <Shield className="w-5 h-5" />
+                  ) : (
+                    <User className="w-5 h-5" />
+                  )}
                 </div>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {f.comment}
-                </p>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Response and Rating Forms - Only for logged-in users */}
-      {session ? (
-        <>
-          {/* Response Form for Brands */}
-          {isBrandUser && (
-            <>
-              {complaint.status === "RESOLVED" ||
-              complaint.status === "REJECTED" ? (
-                <div className="mt-6 pt-6 border-t border-border">
-                  <div className="p-6 rounded-2xl bg-muted/30 border border-border text-center">
-                    <span className="material-symbols-outlined text-4xl text-muted-foreground mb-2">
-                      lock
+                <div
+                  className={clsx(
+                    "flex-1 p-5 rounded-2xl shadow-sm border text-sm leading-relaxed whitespace-pre-wrap relative",
+                    f.user?.role === "BRAND"
+                      ? "bg-primary/5 border-primary/20 rounded-tr-none text-foreground"
+                      : "bg-white border-border rounded-tl-none text-muted-foreground",
+                  )}
+                >
+                  <div className="flex justify-between items-center mb-2 opacity-70">
+                    <span className="font-bold text-xs uppercase tracking-wide">
+                      {f.user?.role === "BRAND"
+                        ? complaint.brand?.name
+                        : f.user?.name}
                     </span>
-                    <p className="text-sm font-semibold text-muted-foreground">
-                      This complaint is {complaint.status.toLowerCase()}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      No further responses can be submitted
-                    </p>
+                    <span className="text-[10px] mono">
+                      {new Date(f.createdAt).toLocaleString()}
+                    </span>
                   </div>
+                  {f.comment}
+                </div>
+              </div>
+            ))}
+
+            {/* Editor Area */}
+            <div className="pt-6">
+              {session ? (
+                <div className="bg-card rounded-2xl border border-border/60 shadow-lg shadow-primary/5 p-6 space-y-4">
+                  {/* Logic for Input / Closed State */}
+                  {isBrandUser &&
+                  (complaint.status === "RESOLVED" ||
+                    complaint.status === "REJECTED") ? (
+                    <div className="text-center p-4 bg-muted/20 rounded-xl text-sm text-muted-foreground">
+                      Ticket is closed.
+                    </div>
+                  ) : (
+                    <>
+                      <form
+                        onSubmit={
+                          !isBrandUser && !existingRating
+                            ? handleSubmitResponse
+                            : isBrandUser
+                              ? handleSubmitResponse
+                              : (e) => e.preventDefault()
+                        }
+                      >
+                        {(!existingRating || isBrandUser) && (
+                          <div className="space-y-4">
+                            <div className="flex justify-between">
+                              <label className="text-sm font-bold text-foreground">
+                                {isBrandUser
+                                  ? "Official Response"
+                                  : "Your Reply"}
+                              </label>
+                            </div>
+                            <textarea
+                              className="w-full border border-border rounded-xl p-4 bg-muted/10 min-h-[120px] text-sm focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-muted-foreground/50"
+                              placeholder="Type here..."
+                              value={response}
+                              onChange={(e) => setResponse(e.target.value)}
+                              disabled={submitting}
+                            />
+                            <div className="flex justify-end">
+                              <button
+                                onClick={handleSubmitResponse}
+                                disabled={submitting || !response.trim()}
+                                className="btn-base btn-primary px-6 py-2 rounded-xl flex items-center gap-2"
+                              >
+                                {submitting ? "Sending..." : "Send"}
+                                <span className="material-symbols-outlined text-sm">
+                                  send
+                                </span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </form>
+
+                      {/* Consumer Rating Form */}
+                      {!isBrandUser && !existingRating && (
+                        <div className="mt-8 pt-8 border-t border-border/50">
+                          <div className="bg-primary/5 rounded-2xl p-6 border border-primary/10">
+                            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-primary" />{" "}
+                              Mark as Resolved
+                            </h3>
+                            <form
+                              onSubmit={handleSubmitRating}
+                              className="space-y-4"
+                            >
+                              <RatingStars
+                                max={5}
+                                onChange={setUserRating}
+                                color={complaint.brand?.widgetStyles?.starColor}
+                              />
+                              <textarea
+                                value={ratingComment}
+                                onChange={(e) =>
+                                  setRatingComment(e.target.value)
+                                }
+                                placeholder="Optional feedback..."
+                                className="w-full rounded-xl border border-border bg-white p-3 text-sm focus:border-primary outline-none"
+                              />
+                              <button
+                                type="submit"
+                                disabled={ratingSubmitting || userRating === 0}
+                                className="w-full btn-base btn-primary rounded-xl py-3 font-bold"
+                              >
+                                {ratingSubmitting
+                                  ? "Submitting..."
+                                  : "Submit Rating & Close"}
+                              </button>
+                            </form>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               ) : (
-                <form
-                  onSubmit={handleSubmitResponse}
-                  className="mt-6 pt-6 border-t border-border space-y-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-bold tracking-wider">
-                      Submit Official Response
-                    </label>
-                    <span className="text-[10px] text-muted-foreground italic">
-                      AI response suggestion coming soon
-                    </span>
-                  </div>
-                  <textarea
-                    className="w-full border border-border rounded-2xl p-4 bg-background min-h-[150px] text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
-                    placeholder="Type your official response to the customer..."
-                    value={response}
-                    onChange={(e) => setResponse(e.target.value)}
-                    disabled={submitting}
-                  />
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={submitting || !response.trim()}
-                      className="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {submitting ? "Sending..." : "Send Response"}
-                      <span className="material-symbols-outlined text-sm">
-                        send
-                      </span>
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground text-center">
-                    Submitting a response will automatically update the
-                    complaint status to <strong>RESPONDED</strong>.
-                  </p>
-                </form>
-              )}
-            </>
-          )}
-
-          {/* Consumer Response and Rating - Only if no rating submitted */}
-          {!isBrandUser && !existingRating && (
-            <>
-              <form
-                onSubmit={handleSubmitResponse}
-                className="mt-6 pt-6 border-t border-border space-y-4"
-              >
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-bold tracking-wider">
-                    Reply to Brand
-                  </label>
-                </div>
-                <textarea
-                  className="w-full border border-border rounded-2xl p-4 bg-background min-h-[120px] text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
-                  placeholder="Type your response or follow-up question..."
-                  value={response}
-                  onChange={(e) => setResponse(e.target.value)}
-                  disabled={submitting}
-                />
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={submitting || !response.trim()}
-                    className="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                <div className="text-center p-6 border border-border rounded-2xl">
+                  <Link
+                    href="/auth/login"
+                    className="text-primary font-bold hover:underline"
                   >
-                    {submitting ? "Sending..." : "Send Reply"}
-                    <span className="material-symbols-outlined text-sm">
-                      send
-                    </span>
-                  </button>
+                    Sign In needed
+                  </Link>
                 </div>
-              </form>
-
-              {/* Rating Section for Consumers */}
-              <form
-                onSubmit={handleSubmitRating}
-                className="mt-6 pt-6 border-t border-border space-y-4"
-              >
-                <h3 className="text-sm font-bold tracking-wider">
-                  Rate Brand Response
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold mb-2 block text-muted-foreground">
-                      Your Rating
-                    </label>
-                    <RatingStars max={5} onChange={setUserRating} />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold mb-2 block text-muted-foreground">
-                      Comment (Optional)
-                    </label>
-                    <textarea
-                      value={ratingComment}
-                      onChange={(e) => setRatingComment(e.target.value)}
-                      placeholder="Share your experience with the brand's response..."
-                      className="w-full rounded-xl border border-border bg-background p-4 min-h-[80px] text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
-                      disabled={ratingSubmitting}
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={ratingSubmitting || userRating === 0}
-                      className="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 transition-all disabled:opacity-50"
-                    >
-                      {ratingSubmitting ? "Submitting..." : "Submit Rating"}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </>
-          )}
-        </>
-      ) : (
-        <div className="mt-8 p-8 rounded-4xl bg-primary/5 border border-dashed border-primary/20 text-center">
-          <p className="text-muted-foreground mb-4">
-            You must be signed in to join the conversation or leave a rating.
-          </p>
-          <div className="flex justify-center gap-4">
-            <Link href="/auth/login">
-              <button className="px-6 py-2 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 transition-all text-sm">
-                Sign In
-              </button>
-            </Link>
-            <Link href="/auth/register">
-              <button className="px-6 py-2 variant-outline font-bold rounded-xl hover:bg-muted transition-all text-sm border border-border">
-                Create Account
-              </button>
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* Display Submitted Rating */}
-      {!isBrandUser && existingRating && (
-        <div className="mt-6 pt-6 border-t border-border">
-          <h3 className="text-sm font-bold tracking-wider mb-4">Your Rating</h3>
-          <div className="p-6 rounded-2xl bg-primary/5 border border-primary/20">
-            <div className="flex items-center gap-3 mb-3">
-              <RatingStars
-                max={5}
-                initialRating={existingRating.stars}
-                readOnly={true}
-              />
-              <span className="text-sm font-semibold">
-                {existingRating.stars} out of 5 stars
-              </span>
+              )}
             </div>
-            {existingRating.comment && (
-              <p className="text-sm leading-relaxed mt-3 text-foreground/80">
-                {existingRating.comment}
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground mt-4">
-              Submitted on{" "}
-              {new Date(existingRating.createdAt).toLocaleDateString()}
-            </p>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

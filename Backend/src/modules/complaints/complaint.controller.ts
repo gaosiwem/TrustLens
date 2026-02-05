@@ -219,3 +219,21 @@ export async function publicRecentComplaintsController(
     res.status(400).json({ error: error.message });
   }
 }
+
+export async function assignComplaintController(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { assignedToId } = req.body;
+
+    // TODO: Verify user belongs to brand
+
+    await prisma.complaint.update({
+      where: { id },
+      data: { assignedToId: assignedToId === undefined ? null : assignedToId },
+    });
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+}

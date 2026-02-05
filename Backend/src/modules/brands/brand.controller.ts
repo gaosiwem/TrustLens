@@ -3,6 +3,7 @@ import prisma from "../../lib/prisma.js";
 import {
   createBrand,
   getBrands,
+  getBrandById,
   deleteBrand,
   toggleBrandVerification,
   updateBrand,
@@ -50,6 +51,12 @@ export async function updateBrandController(req: Request, res: Response) {
     // Authorization check
     const brandToUpdate = await prisma.brand.findUnique({
       where: { id },
+      include: {
+        subscriptions: {
+          where: { status: "ACTIVE" },
+          include: { plan: true },
+        },
+      },
     });
 
     if (!brandToUpdate) {
@@ -64,6 +71,30 @@ export async function updateBrandController(req: Request, res: Response) {
       return res
         .status(403)
         .json({ error: "You are not authorized to update this brand" });
+    }
+
+    // PRO Feature Check: Custom Description
+    if (
+      description !== undefined &&
+      description !== (brandToUpdate as any).description
+    ) {
+      const activeSub = brandToUpdate.subscriptions[0];
+      const allowedPlans = [
+        "PRO",
+        "BUSINESS",
+        "ENTERPRISE",
+        "PREMIUM_VERIFIED",
+      ];
+
+      const hasProAccess =
+        activeSub && allowedPlans.includes(activeSub.plan.code);
+
+      if (!hasProAccess && !isAdmin) {
+        return res.status(403).json({
+          error:
+            "Custom brand description is a PRO feature. Please upgrade your plan.",
+        });
+      }
     }
 
     let finalLogoUrl = logoUrl;
@@ -223,5 +254,156 @@ export async function getBrandEnforcementsController(
     res.json(enforcements);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch enforcements" });
+  }
+}
+
+export async function getBrandByIdController(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: "Missing brand ID" });
+
+    const brand = await getBrandById(id);
+    if (!brand) return res.status(404).json({ error: "Brand not found" });
+
+    // Authorization check
+    const user = (req as any).user;
+    const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+    // Check if user is the manager
+    const isBrandManager =
+      user.role === "BRAND" && (brand as any).managerId === user.userId;
+
+    if (!isAdmin && !isBrandManager) {
+      return res.status(403).json({
+        error: "You are not authorized to view this brand's settings",
+      });
+    }
+
+    // Proactively resolve widgetPlan based on active subscriptions for the UI
+    const planCodes = brand.subscriptions.map((s: any) => s.plan.code);
+    const widgetPlans = ["ENTERPRISE", "BUSINESS", "PRO"];
+    const highestPlan = widgetPlans.find((wp) =>
+      planCodes.some((pc) => pc.includes(wp)),
+    );
+
+    if (highestPlan) {
+      (brand as any).widgetPlan = highestPlan;
+    }
+
+    res.json(brand);
+  } catch (error) {
+    console.error("Get brand error:", error);
+    res.status(500).json({ error: "Failed to fetch brand" });
+  }
+}
+
+export async function updateBrandWidgetSettingsController(
+  req: Request,
+  res: Response,
+) {
+  try {
+    const { id } = req.params;
+    const {
+      allowedDomains,
+      widgetWatermark,
+      widgetRoutingEnabled,
+      defaultTheme,
+      widgetStyles,
+      widgetWatermarkText, // Add new field
+    } = req.body;
+
+    if (!id) return res.status(400).json({ error: "Missing brand ID" });
+
+    // Auth check
+    const user = (req as any).user;
+    const brand = await prisma.brand.findUnique({ where: { id } });
+
+    if (!brand) return res.status(404).json({ error: "Brand not found" });
+
+    const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+    const isManager =
+      user.role === "BRAND" && (brand as any).managerId === user.userId;
+
+    if (!isAdmin && !isManager) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    // Update
+    const updated = await prisma.brand.update({
+      where: { id },
+      data: {
+        allowedDomains,
+        widgetWatermark,
+        widgetRoutingEnabled,
+        defaultTheme,
+        widgetStyles,
+        widgetWatermarkText, // Add to update data
+      },
+      select: {
+        id: true,
+        allowedDomains: true,
+        managerId: true,
+        widgetPlan: true,
+        slug: true,
+        widgetStyles: true,
+        widgetWatermark: true,
+        widgetWatermarkText: true, // Add to response
+        widgetRoutingEnabled: true,
+        defaultTheme: true,
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Update widget settings error:", error);
+    res.status(500).json({ error: "Failed to update widget settings" });
+  }
+}
+
+// Generate a new widget key
+export async function createBrandWidgetKeyController(
+  req: Request,
+  res: Response,
+) {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.userId;
+
+    const brand = await prisma.brand.findUnique({ where: { id } });
+    if (!brand) return res.status(404).json({ error: "Brand not found" });
+
+    // Check ownership
+    const isAdmin =
+      (req as any).user.role === "ADMIN" ||
+      (req as any).user.role === "SUPER_ADMIN";
+    const isManager = (req as any).user.userId === brand.managerId;
+
+    if (!isAdmin && !isManager) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    // Limit active keys
+    const count = await prisma.widgetKey.count({
+      where: { brandId: id, isActive: true },
+    });
+    if (count >= 5) {
+      return res
+        .status(400)
+        .json({ error: "Maximum of 5 active keys allowed" });
+    }
+
+    const key = `pk_${Math.random().toString(36).substring(2, 15)}_${Math.random().toString(36).substring(2, 15)}`;
+
+    const newKey = await prisma.widgetKey.create({
+      data: {
+        brandId: id,
+        key: key,
+        isActive: true,
+      },
+    });
+
+    res.json({ ok: true, key: newKey });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to generate key" });
   }
 }

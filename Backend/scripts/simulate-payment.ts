@@ -2,9 +2,18 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function simulatePayment() {
-  // Hardcoded for debugging user issue
-  const brandId = "fd766cd1-7196-4114-9438-ba1ec7c4ad66";
-  const userId = "dfa6c5af-f491-426a-b66f-b52638525a42";
+  // Find Checkers brand
+  const brand = await prisma.brand.findFirst({
+    where: { name: "Checkers" },
+  });
+
+  if (!brand) {
+    console.error("Checkers brand not found");
+    return;
+  }
+
+  const brandId = brand.id;
+  const userId = brand.managerId || "dfa6c5af-f491-426a-b66f-b52638525a42";
 
   // Ask which plan to simulate
   const planCode = "BASIC_VERIFIED"; // Change to PREMIUM_VERIFIED if needed
@@ -18,7 +27,7 @@ async function simulatePayment() {
     return;
   }
 
-  console.log(`Simulating payment for brand: Mit Mak Motors`);
+  console.log(`Simulating payment for brand: Checkers`);
   console.log(`Plan: ${plan.name} (${planCode})`);
   console.log(`Price: R${plan.monthlyPrice}`);
 
@@ -57,6 +66,22 @@ async function simulatePayment() {
   }
 
   console.log(`✅ Created BrandSubscription: ${subscription.id}`);
+
+  // Update Brand table with verified status and widget plan
+  const widgetPlans = ["PRO", "BUSINESS", "ENTERPRISE", "FREE"];
+  const matchedPlan = widgetPlans.find((p) => planCode.includes(p));
+
+  const updateData: any = {};
+  if (isVerifiedPlan) updateData.isVerified = true;
+  if (matchedPlan) updateData.widgetPlan = matchedPlan;
+
+  if (Object.keys(updateData).length > 0) {
+    await prisma.brand.update({
+      where: { id: brandId },
+      data: updateData,
+    });
+    console.log(`✅ Updated Brand table (${JSON.stringify(updateData)})`);
+  }
 
   // Create VerifiedSubscription if it's a verified plan
   /*

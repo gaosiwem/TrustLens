@@ -40,11 +40,9 @@ export default function BrandLayout({
         return;
       }
 
-      // Not a BRAND user - let them through (shouldn't happen but just in case)
-      if ((session.user as any)?.role !== "BRAND") {
-        setChecking(false);
-        return;
-      }
+      // Note: We don't return early if role is not BRAND, because it might be
+      // a newly approved user whose session role hasn't updated yet.
+      // The dashboard API will tell us if they have managed brands.
 
       try {
         const apiUrl =
@@ -67,10 +65,11 @@ export default function BrandLayout({
           // User hasn't claimed any brand - redirect to claim
           router.replace("/brand/claim");
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error checking brand status:", error);
-        // On error, redirect to claim as fallback
-        router.replace("/brand/claim");
+        // Do NOT redirect on actual errors (429, 500) to avoid loops
+        // Only set checking false so the children can try to render/handle it
+        setChecking(false);
       }
     };
 

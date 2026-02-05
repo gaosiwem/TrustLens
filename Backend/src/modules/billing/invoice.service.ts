@@ -55,6 +55,7 @@ export async function issuePaidInvoice({
         subject: receiptEmail.subject,
         htmlBody: receiptEmail.htmlBody,
         textBody: receiptEmail.textBody,
+        attachments: receiptEmail.attachments,
       });
     }
   } catch (err) {

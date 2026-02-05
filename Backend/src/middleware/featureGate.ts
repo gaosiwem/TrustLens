@@ -14,32 +14,42 @@ export function requireFeature(feature: string) {
           .json({ error: "Access denied. Brand profile required." });
       }
 
-      const subscription = await prisma.brandSubscription.findUnique({
-        where: { brandId },
+      const subscriptions = await prisma.brandSubscription.findMany({
+        where: { brandId, status: "ACTIVE" },
         include: { plan: true },
       });
 
-      // Default to FREE if no active subscription found
-      const planFeatures =
-        subscription?.status === "ACTIVE" && subscription.plan.features
-          ? (subscription.plan.features as any)
-          : {
-              alerts: false,
-              aiInsights: false,
-              sentimentTracking: false,
-              brandAudit: false,
-              customDescription: false,
-              trustTrend: false,
-              riskSignals: false,
-              rootCauseAI: false,
-              teamSLA: false,
-              historicalBenchmarking: false,
-              apiAccess: false,
-              customLLM: false,
-              maxTeamSeats: 1,
-            };
+      // Merge features from all active subscriptions
+      const mergedFeatures: Record<string, any> = {
+        alerts: false,
+        aiInsights: false,
+        sentimentTracking: false,
+        brandAudit: false,
+        customDescription: false,
+        trustTrend: false,
+        riskSignals: false,
+        rootCauseAI: false,
+        teamSLA: false,
+        historicalBenchmarking: false,
+        apiAccess: false,
+        customLLM: false,
+        maxTeamSeats: 1,
+      };
 
-      if (!planFeatures[feature]) {
+      for (const sub of subscriptions) {
+        const planFeatures = sub.plan.features as any;
+        if (planFeatures) {
+          for (const [key, value] of Object.entries(planFeatures)) {
+            if (typeof value === "boolean") {
+              mergedFeatures[key] = mergedFeatures[key] || value;
+            } else if (typeof value === "number") {
+              mergedFeatures[key] = Math.max(mergedFeatures[key] || 0, value);
+            }
+          }
+        }
+      }
+
+      if (!mergedFeatures[feature]) {
         return res.status(403).json({
           error: "Upgrade required",
           message: `The ${feature} feature is not available on your current plan.`,

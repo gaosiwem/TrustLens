@@ -1,14 +1,18 @@
 "use client";
-
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import axios from "axios";
 import { getAssetUrl } from "../lib/utils";
 import FilePreview from "./FilePreview";
 import { Badge } from "./ui/badge";
+import { toast } from "sonner";
 
 export default function AdminBrandQueue() {
   const { data: session } = useSession();
+  const [activeStatus, setActiveStatus] = useState<
+    "PENDING" | "APPROVED" | "REJECTED" | "INFO_REQUESTED"
+  >("PENDING");
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
 
   const {
@@ -17,13 +21,16 @@ export default function AdminBrandQueue() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["brandClaims"],
+    queryKey: ["brandClaims", activeStatus],
     queryFn: async () => {
-      const res = await axios.get(`${apiUrl}/admin/brand-claims`, {
-        headers: {
-          Authorization: `Bearer ${(session as any)?.accessToken}`,
+      const res = await axios.get(
+        `${apiUrl}/admin/brand-claims?status=${activeStatus}`,
+        {
+          headers: {
+            Authorization: `Bearer ${(session as any)?.accessToken}`,
+          },
         },
-      });
+      );
       return res.data;
     },
     enabled: !!session,
@@ -38,12 +45,15 @@ export default function AdminBrandQueue() {
           headers: {
             Authorization: `Bearer ${(session as any)?.accessToken}`,
           },
-        }
+        },
       );
       refetch();
+      toast.success(
+        `Claim ${status.toLowerCase().replace("_", " ")} successfully`,
+      );
     } catch (error) {
       console.error("Action failed:", error);
-      alert("Failed to update claim status");
+      toast.error("Failed to update claim status");
     }
   };
 
@@ -86,6 +96,25 @@ export default function AdminBrandQueue() {
         <p className="text-sm text-muted-foreground mt-1">
           Review and verify brand ownership applications.
         </p>
+      </div>
+
+      <div className="flex gap-4 border-b border-border">
+        {["PENDING", "APPROVED", "REJECTED", "INFO_REQUESTED"].map((status) => (
+          <button
+            key={status}
+            onClick={() => setActiveStatus(status as any)}
+            className={`pb-3 text-xs font-bold tracking-widest transition-all relative ${
+              activeStatus === status
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {status}
+            {activeStatus === status && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+            )}
+          </button>
+        ))}
       </div>
 
       <div className="space-y-4">
@@ -180,35 +209,52 @@ export default function AdminBrandQueue() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3 pt-4 border-t border-border">
-                <button
-                  onClick={() => handleAction(claim.id, "APPROVED")}
-                  className="btn-success flex items-center gap-2 text-xs font-bold px-4 py-2"
-                >
-                  <span className="material-symbols-outlined text-sm">
-                    verified
-                  </span>
-                  Approve Claim
-                </button>
-                <button
-                  onClick={() => handleAction(claim.id, "INFO_REQUESTED")}
-                  className="btn-warning flex items-center gap-2 text-xs font-bold px-4 py-2"
-                >
-                  <span className="material-symbols-outlined text-sm">
-                    info
-                  </span>
-                  Request Info
-                </button>
-                <button
-                  onClick={() => handleAction(claim.id, "REJECTED")}
-                  className="btn-danger flex items-center gap-2 text-xs font-bold px-4 py-2"
-                >
-                  <span className="material-symbols-outlined text-sm">
-                    block
-                  </span>
-                  Reject
-                </button>
-              </div>
+              {activeStatus === "PENDING" && (
+                <div className="flex flex-wrap gap-3 pt-4 border-t border-border">
+                  <button
+                    onClick={() => handleAction(claim.id, "APPROVED")}
+                    className="btn-success flex items-center gap-2 text-xs font-bold px-4 py-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      verified
+                    </span>
+                    Approve Claim
+                  </button>
+                  <button
+                    onClick={() => handleAction(claim.id, "INFO_REQUESTED")}
+                    className="btn-warning flex items-center gap-2 text-xs font-bold px-4 py-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      info
+                    </span>
+                    Request Info
+                  </button>
+                  <button
+                    onClick={() => handleAction(claim.id, "REJECTED")}
+                    className="btn-danger flex items-center gap-2 text-xs font-bold px-4 py-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      block
+                    </span>
+                    Reject
+                  </button>
+                </div>
+              )}
+              {activeStatus !== "PENDING" && (
+                <div className="flex items-center gap-2 pt-4 border-t border-border">
+                  <Badge
+                    variant={
+                      activeStatus === "APPROVED" ? "default" : "secondary"
+                    }
+                  >
+                    {activeStatus}
+                  </Badge>
+                  <p className="text-[10px] text-muted-foreground">
+                    Processed on{" "}
+                    {new Date(claim.updatedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
             </div>
           ))
         ) : (
@@ -217,7 +263,7 @@ export default function AdminBrandQueue() {
               inbox
             </span>
             <p className="text-muted-foreground font-bold">
-              No pending brand claims
+              No {activeStatus.toLowerCase().replace("_", " ")} brand claims
             </p>
           </div>
         )}

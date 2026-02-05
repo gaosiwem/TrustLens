@@ -1,10 +1,4 @@
-export type PlanCode =
-  | "FREE"
-  | "PRO"
-  | "BUSINESS"
-  | "ENTERPRISE"
-  | "BASIC_VERIFIED"
-  | "PREMIUM_VERIFIED";
+export type PlanCode = "FREE" | "PRO" | "BUSINESS" | "ENTERPRISE" | "VERIFIED";
 
 export interface PlanFeature {
   plan: PlanCode;
@@ -25,6 +19,7 @@ export const REPUTATION_PLANS: PlanFeature[] = [
       "Unlimited responses to complaints",
       "Basic response drafting",
       "Standard platform dashboard",
+      "Google Reviews Posting",
     ],
   },
   {
@@ -49,6 +44,7 @@ export const REPUTATION_PLANS: PlanFeature[] = [
       "Trust Trend Score (AI Forecast)",
       "Reputation Risk Early-Warning",
       "Root cause AI analysis",
+      "Historical Benchmarking",
       "Team member assignments & SLAs",
     ],
   },
@@ -58,7 +54,6 @@ export const REPUTATION_PLANS: PlanFeature[] = [
     description:
       "Multi-brand intelligence and custom AI integrations for national conglomerates.",
     features: [
-      "Historical Benchmarking",
       "API access to data streams",
       "Custom LLM training on history",
       "Unlimited team seats",
@@ -68,29 +63,18 @@ export const REPUTATION_PLANS: PlanFeature[] = [
 
 export const VERIFICATION_PLANS: PlanFeature[] = [
   {
-    plan: "BASIC_VERIFIED",
+    plan: "VERIFIED",
     price: "R500",
     description:
-      "Essential identity verification for SMEs, sole proprietors, and new businesses.",
+      "Essential identity verification and trusted status for your brand.",
     features: [
       "Business identity verification",
-      "Verified badge",
-      "Annual status re-validation",
-      "Standard processing queue",
-    ],
-  },
-  {
-    plan: "PREMIUM_VERIFIED",
-    price: "R1,500",
-    popular: true,
-    description:
-      "Advanced authority and governance for established brands. Best for corporate trust.",
-    features: [
-      "Everything in Basic",
+      "Verified badge on profile",
       "Priority verification queue",
       "Fast-track dispute clarification",
       "Verification audit trail",
       "Extended badge visibility",
+      "Annual status re-validation",
     ],
   },
 ];

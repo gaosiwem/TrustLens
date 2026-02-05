@@ -37,12 +37,17 @@ export function PlanCard({
   popular,
   isAnnual = false,
 }: PlanCardProps) {
-  const { activePlans, loading: contextLoading } = useSubscription();
+  const {
+    plan: currentPlan,
+    activePlans,
+    loading: contextLoading,
+  } = useSubscription();
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
 
   // Disable if already subscribed to this plan, OR if trying to select FREE while having other plans
-  const isCurrent = activePlans.includes(plan);
+  const isCurrent =
+    activePlans.includes(plan) || (plan === "FREE" && activePlans.length === 0);
   const isDisabled = isCurrent || (plan === "FREE" && activePlans.length > 0);
 
   const handleCheckout = async () => {

@@ -39,6 +39,7 @@ async function main() {
       subject: email.subject,
       html: email.htmlBody,
       text: email.textBody,
+      attachments: email.attachments,
     });
 
     console.log("✅ Brand Invitation Email sent successfully!");

@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import axios from "axios";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -55,7 +56,7 @@ function RegisterForm() {
       if (result?.error) {
         console.warn("Auto-login failed:", result.error);
         window.location.href = `/auth/login?registered=true&callbackUrl=${encodeURIComponent(
-          callbackUrl
+          callbackUrl,
         )}`;
         return;
       }
@@ -64,8 +65,9 @@ function RegisterForm() {
       window.location.href = callbackUrl;
     } catch (error: any) {
       console.error("Registration failed:", error);
-      alert(
-        "Registration failed: " + (error.response?.data?.error || error.message)
+      toast.error(
+        "Registration failed: " +
+          (error.response?.data?.error || error.message),
       );
     } finally {
       setLoading(false);
@@ -137,7 +139,7 @@ function RegisterForm() {
             href={`/auth/login${
               searchParams.get("callbackUrl")
                 ? `?callbackUrl=${encodeURIComponent(
-                    searchParams.get("callbackUrl") as string
+                    searchParams.get("callbackUrl") as string,
                   )}`
                 : ""
             }`}

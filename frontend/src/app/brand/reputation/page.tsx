@@ -1,10 +1,26 @@
 "use client";
 
 import { FeatureGate } from "../../../components/subscription/FeatureGate";
-import { ShieldCheck, AlertTriangle, TrendingUp, History } from "lucide-react";
+import {
+  ShieldCheck,
+  AlertTriangle,
+  TrendingUp,
+  History,
+  Brain,
+  Sword,
+} from "lucide-react";
 import BrandHeader from "../../../components/brand/BrandHeader";
+import { useSession } from "next-auth/react";
+import TrustForecastWidget from "../../../components/brand/TrustForecastWidget";
+import RiskSignalsWidget from "../../../components/brand/RiskSignalsWidget";
+import RootCauseWidget from "../../../components/brand/RootCauseWidget";
+import HistoricalBenchmarkingWidget from "../../../components/brand/HistoricalBenchmarkingWidget";
+import BrandAuditWidget from "../../../components/brand/BrandAuditWidget";
+import { CompetitorScanningWidget } from "../../../components/brand/CompetitorScanningWidget";
 
 export default function ReputationPage() {
+  const { data: session } = useSession();
+  const brandId = (session?.user as any)?.brandId;
   const widgets = [
     {
       title: "Trust Trend Score",
@@ -27,6 +43,20 @@ export default function ReputationPage() {
         "Compare your current performance against your own historical peaks and industry rivals.",
       icon: History,
       feature: "historicalBenchmarking",
+    },
+    {
+      title: "Competitor Vulnerability Scanning",
+      description:
+        "Offensive intelligence tracking the top weaknesses of your industry rivals.",
+      icon: Sword,
+      feature: "historicalBenchmarking", // Grouped with benchmarking
+    },
+    {
+      title: "Root Cause AI Analysis",
+      description:
+        "Systemic diagnosis of topic clusters to identify and resolve recurring process failures.",
+      icon: Brain,
+      feature: "rootCauseAI",
     },
     {
       title: "Brand Health Audit",
@@ -62,7 +92,10 @@ export default function ReputationPage() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-6 pb-12">
           {widgets.map((widget) => (
-            <div key={widget.title} className="group relative">
+            <div
+              key={widget.title}
+              className={`${widget.feature === "brandAudit" ? "" : "group"} relative z-10 hover:z-100 transition-all duration-300`}
+            >
               <div className="p-6 rounded-3xl bg-card border border-border flex flex-col h-full hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 shadow-sm">
                 <div className="flex gap-5 mb-6">
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
@@ -77,14 +110,37 @@ export default function ReputationPage() {
                 </div>
 
                 <FeatureGate feature={widget.feature}>
-                  <div className="mt-auto h-32 rounded-xl bg-muted/20 border-2 border-dashed border-border flex flex-col items-center justify-center p-6 text-center bg-linear-to-b from-transparent to-muted/20">
-                    <span className="material-symbols-outlined text-primary/30 text-3xl mb-2">
-                      query_stats
-                    </span>
-                    <p className="text-[10px] font-black text-foreground/70 uppercase tracking-widest">
-                      Processing historical signals...
-                    </p>
-                  </div>
+                  {widget.feature === "trustTrend" && brandId ? (
+                    <TrustForecastWidget brandId={brandId} />
+                  ) : widget.feature === "riskSignals" && brandId ? (
+                    <RiskSignalsWidget brandId={brandId} />
+                  ) : widget.feature === "rootCauseAI" && brandId ? (
+                    <RootCauseWidget brandId={brandId} />
+                  ) : widget.title === "Competitor Vulnerability Scanning" &&
+                    brandId ? (
+                    <CompetitorScanningWidget />
+                  ) : widget.feature === "historicalBenchmarking" && brandId ? (
+                    <HistoricalBenchmarkingWidget brandId={brandId} />
+                  ) : widget.feature === "brandAudit" && brandId ? (
+                    <BrandAuditWidget brandId={brandId} />
+                  ) : (
+                    <div className="mt-auto h-32 rounded-xl bg-muted/20 border-2 border-dashed border-border flex flex-col items-center justify-center p-6 text-center bg-linear-to-b from-transparent to-muted/20">
+                      <span className="material-symbols-outlined text-primary text-3xl mb-2">
+                        schedule
+                      </span>
+                      <p className="text-[10px] font-black text-foreground/70 uppercase tracking-widest leading-relaxed">
+                        Next Audit:{" "}
+                        {new Date(
+                          new Date().getFullYear(),
+                          Math.floor(new Date().getMonth() / 3) * 3 + 3,
+                          1,
+                        ).toLocaleDateString()}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Check email for reports
+                      </p>
+                    </div>
+                  )}
                 </FeatureGate>
               </div>
             </div>

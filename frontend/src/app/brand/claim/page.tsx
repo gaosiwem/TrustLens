@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import BrandClaimForm from "../../../components/BrandClaimForm";
 import Link from "next/link";
+import NextImage from "next/image";
 import { Button } from "../../../components/ui/button";
 import { isPersonalEmail } from "../../../utils/email";
 import UserProfileMenu from "../../../components/UserProfileMenu";
@@ -29,19 +30,35 @@ export default function BrandClaimPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Redirect if user already manages a brand (Claim Approved)
   useEffect(() => {
-    if (session?.user?.brandId) {
-      router.replace("/brand/verified");
-    }
-  }, [session, router]);
+    const checkStatus = async () => {
+      if (status === "authenticated") {
+        try {
+          const apiUrl =
+            process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+          const res = await fetch(`${apiUrl}/dashboard`, {
+            headers: { Authorization: `Bearer ${session?.accessToken}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.managedBrands && data.managedBrands.length > 0) {
+              router.replace("/brand/dashboard");
+            }
+          }
+        } catch (error) {
+          console.error("Error checking brand status:", error);
+        }
+      }
+    };
+    checkStatus();
+  }, [session, status, router]);
 
   if (status === "loading") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-        <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
-        <p className="mt-4 text-sm font-bold tracking-widest text-muted-foreground uppercase animate-pulse">
-          Loading...
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-center">
+        <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-4"></div>
+        <p className="text-sm font-bold tracking-widest text-muted-foreground uppercase animate-pulse">
+          Verifying Identity...
         </p>
       </div>
     );
@@ -54,12 +71,14 @@ export default function BrandClaimPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-3xl">
-                shield
-              </span>
-              <span className="text-xl font-black tracking-tighter">
-                TrustLens
-              </span>
+              <NextImage
+                src="/logo.png"
+                alt="TrustLens"
+                width={300}
+                height={100}
+                className="h-24 w-auto"
+                priority
+              />
             </Link>
 
             {/* Profile Menu - Show when logged in */}

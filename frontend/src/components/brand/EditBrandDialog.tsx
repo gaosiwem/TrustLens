@@ -8,6 +8,10 @@ import InputField from "../InputField";
 import { getAssetUrl } from "../../lib/utils";
 import { toast } from "sonner";
 
+import { Badge } from "../ui/badge";
+import { Shield } from "lucide-react";
+import Button from "../Button"; // Assuming Button component exists or use standard button
+
 interface ManagedBrand {
   id: string;
   name: string;
@@ -16,6 +20,7 @@ interface ManagedBrand {
   websiteUrl?: string;
   supportEmail?: string;
   supportPhone?: string;
+  subscriptions?: any[];
 }
 
 interface EditBrandDialogProps {
@@ -42,6 +47,7 @@ export default function EditBrandDialog({
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [isPro, setIsPro] = useState(false);
 
   useEffect(() => {
     if (brand) {
@@ -54,6 +60,16 @@ export default function EditBrandDialog({
         logoUrl: brand.logoUrl || "",
       });
       setLogoFile(null);
+
+      // Check subscription
+      const hasPro = brand.subscriptions?.some(
+        (sub: any) =>
+          sub.status === "ACTIVE" &&
+          ["PRO", "BUSINESS", "ENTERPRISE", "PREMIUM_VERIFIED"].includes(
+            sub.plan?.code,
+          ),
+      );
+      setIsPro(!!hasPro);
     }
   }, [brand]);
 
@@ -66,10 +82,14 @@ export default function EditBrandDialog({
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
       const data = new FormData();
       data.append("name", formData.name);
-      data.append("description", formData.description);
       data.append("websiteUrl", formData.websiteUrl);
       data.append("supportEmail", formData.supportEmail);
       data.append("supportPhone", formData.supportPhone);
+
+      // Only send description if allowed
+      if (isPro) {
+        data.append("description", formData.description);
+      }
 
       if (logoFile) {
         data.append("logo", logoFile);
@@ -112,16 +132,40 @@ export default function EditBrandDialog({
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             required
           />
-          <InputField
-            label="Description"
-            multiline
-            value={formData.description}
-            onChange={(e) =>
-              setFormData({ ...formData, description: e.target.value })
-            }
-            placeholder="Introduce your brand to consumers..."
-            className="min-h-[100px]"
-          />
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground tracking-wider flex items-center gap-2">
+              Description
+              {!isPro && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] border-primary/20 text-primary bg-primary/5 h-5 px-1.5 gap-1"
+                >
+                  <Shield className="w-3 h-3" /> PRO
+                </Badge>
+              )}
+            </label>
+            <div className="relative">
+              <textarea
+                className={`w-full min-h-[100px] rounded-lg border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary ${!isPro ? "opacity-50 cursor-not-allowed bg-muted/20 border-dashed" : "bg-card border-border"}`}
+                value={formData.description}
+                onChange={(e) =>
+                  isPro &&
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                placeholder="Introduce your brand to consumers..."
+                disabled={!isPro}
+              />
+              {!isPro && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xs font-bold text-muted-foreground bg-background/80 px-3 py-1 rounded-full border border-border shadow-sm">
+                    Upgrade to customize
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
           <InputField
             label="Website"
             value={formData.websiteUrl}

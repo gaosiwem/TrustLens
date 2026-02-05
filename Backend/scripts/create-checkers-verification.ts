@@ -75,7 +75,12 @@ async function createCheckersVerification() {
 
   // Create BrandSubscription
   const subscription = await prisma.brandSubscription.upsert({
-    where: { brandId: brand.id },
+    where: {
+      brandId_planId: {
+        brandId: brand.id,
+        planId: plan.id,
+      },
+    },
     update: {
       planId: plan.id,
       status: "ACTIVE",

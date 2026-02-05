@@ -145,11 +145,25 @@ export async function handleWebhook(req: Request, res: Response) {
       });
     }
 
+    // Update Brand flags (widgetPlan and isVerified)
+    const widgetPlans = ["PRO", "BUSINESS", "ENTERPRISE", "FREE"];
+    const matchedPlan = widgetPlans.find((p) => planCode.includes(p));
+
+    const updateData: any = {};
+    if (matchedPlan) updateData.widgetPlan = matchedPlan as any;
+    if (isVerifiedPlan) updateData.isVerified = true;
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.brand.update({
+        where: { id: brandId },
+        data: updateData,
+      });
+    }
+
     // If it's a verified plan, create VerifiedSubscription history if a request exists
     if (isVerifiedPlan) {
-      // Note: We do NOT automatically set brand.isVerified = true here.
-      // Verification requires document approval.
-      // The user will now be in "paid_pending" state until they upload docs and admin approves.
+      // Note: We automatically set brand.isVerified = true above for verified plans.
+      // This ensures the badge appears immediately upon payment.
 
       const latestRequest = await prisma.verifiedRequest.findFirst({
         where: { brandId },
@@ -362,19 +376,29 @@ export async function activateDevSubscription(req: any, res: Response) {
 
     console.log("[DEV_ACTIVATE] BrandSubscription upserted:", subscription);
 
-    // Handle Verified status and subscription
+    // Update Brand flags (widgetPlan and isVerified)
+    const widgetPlans = ["PRO", "BUSINESS", "ENTERPRISE", "FREE"];
+    const matchedPlan = widgetPlans.find((p) => planCode.includes(p));
+
+    const updateData: any = {};
+    if (matchedPlan) updateData.widgetPlan = matchedPlan as any;
+    if (isVerifiedPlan) updateData.isVerified = true;
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.brand.update({
+        where: { id: brandId },
+        data: updateData,
+      });
+      console.log(
+        `[DEV_ACTIVATE] Brand updated: ${JSON.stringify(updateData)}`,
+      );
+    }
+
+    // Handle Verified subscription history
     if (isVerifiedPlan) {
       console.log(
         "[DEV_ACTIVATE] Handling verified plan logic (Active subscription state)...",
       );
-      // Note: We do NOT set isVerified=true here anymore.
-      // Devs should approve the document request to verify.
-
-      // await prisma.brand.update({
-      //   where: { id: brandId },
-      //   data: { isVerified: true },
-      // });
-      console.log("[DEV_ACTIVATE] Brand.isVerified updated.");
 
       // Also try to link to a verified request if it exists
       const latestRequest = await prisma.verifiedRequest.findFirst({

@@ -97,6 +97,7 @@ async function main() {
       subject: emailContent.subject,
       htmlBody: emailContent.htmlBody,
       textBody: emailContent.textBody,
+      attachments: emailContent.attachments,
     });
     console.log("✅ Email Enqueued.");
   } else {

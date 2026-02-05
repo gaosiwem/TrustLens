@@ -21,46 +21,50 @@ export async function dashboardController(req: Request, res: Response) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // 0. Check if this user has any pending brand claims (applicable to all roles)
+    // 0. Check for pending claims
     const pendingClaims = await prisma.brandClaim.count({
       where: { userId, status: "PENDING" },
     });
     const hasPendingClaim = pendingClaims > 0;
 
-    // BRAND users get brand-specific dashboard
-    if (role === "BRAND") {
-      // 1. Find which brands this user manages
-      const brands = await prisma.brand.findMany({
-        where: { managerId: userId },
-        select: {
-          id: true,
-          name: true,
-          isVerified: true,
-          logoUrl: true,
-          description: true,
-          websiteUrl: true,
-          supportEmail: true,
-          supportPhone: true,
-          subscriptions: {
-            where: { status: "ACTIVE" },
-            select: {
-              status: true,
-              endsAt: true,
-              plan: {
-                select: {
-                  code: true,
-                },
+    // 1. Check for managed brands (regardless of role to handle role sync lag)
+    const brands = await prisma.brand.findMany({
+      where: { managerId: userId },
+      select: {
+        id: true,
+        name: true,
+        isVerified: true,
+        logoUrl: true,
+        description: true,
+        websiteUrl: true,
+        supportEmail: true,
+        supportPhone: true,
+        subscriptions: {
+          where: { status: "ACTIVE" },
+          select: {
+            status: true,
+            endsAt: true,
+            plan: {
+              select: {
+                code: true,
               },
             },
           },
         },
-      });
+      },
+    });
 
-      // 2. Already checked for pending claims globally above
+    const isBrandManager = brands.length > 0;
+
+    // If they have brands OR the role is explicitly BRAND, return brand dashboard
+    if (
+      role === "BRAND" ||
+      isBrandManager ||
+      role === "ADMIN" ||
+      role === "SUPER_ADMIN"
+    ) {
       const hasVerifiedBrand = brands.some((b) => b.isVerified);
 
-      // Map to include verifiedUntil alias for frontend compatibility
-      // Find the "best" subscription to display (prefer Verified > others)
       const managedBrands = brands.map((b) => {
         const verifiedSub = b.subscriptions.find((s) =>
           s.plan.code.includes("VERIFIED"),
@@ -80,7 +84,7 @@ export async function dashboardController(req: Request, res: Response) {
       });
 
       if (managedBrands.length === 0) {
-        // No managed brands, return empty dashboard but with claim info
+        // Only get here if role is BRAND/ADMIN but no brands are managed yet
         return res.json({
           metrics: {
             totalComplaints: 0,
@@ -99,6 +103,7 @@ export async function dashboardController(req: Request, res: Response) {
           },
           hasVerifiedBrand: false,
           hasPendingClaim,
+          managedBrands: [],
         });
       }
 
@@ -123,6 +128,7 @@ export async function dashboardController(req: Request, res: Response) {
       });
     }
 
+    // Default USER dashboard
     const [metrics, trends, statusDist, insights] = await Promise.all([
       getDashboardMetrics(userId),
       getComplaintTrends(userId),
@@ -136,6 +142,7 @@ export async function dashboardController(req: Request, res: Response) {
       statusDistribution: statusDist,
       insights,
       hasPendingClaim,
+      managedBrands: [],
     });
   } catch (error) {
     console.error("Dashboard error:", error);

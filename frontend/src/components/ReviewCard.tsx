@@ -20,6 +20,7 @@ interface ReviewCardProps {
   verifiedUntil?: string | null;
   stars?: number;
   latestReply?: string;
+  starColor?: string;
 }
 
 export function ReviewCard({
@@ -37,6 +38,7 @@ export function ReviewCard({
   verifiedUntil: propVerifiedUntil,
   stars: propStars,
   latestReply: propLatestReply,
+  starColor,
 }: ReviewCardProps) {
   const [dbData, setDbData] = useState<any>(null);
   const [loading, setLoading] = useState(!propStars && !!complaintId);
@@ -143,7 +145,12 @@ export function ReviewCard({
               </p>
             </div>
           </div>
-          <RatingStars max={5} initialRating={stars} readOnly={true} />
+          <RatingStars
+            max={5}
+            initialRating={stars}
+            readOnly={true}
+            color={starColor}
+          />
         </div>
 
         <div className="flex items-center gap-3 mb-5">

@@ -101,7 +101,7 @@ export async function notifyBrand(args: NotifyBrandArgs) {
     }
 
     if (toEmails.size > 0) {
-      const { subject, htmlBody, textBody } =
+      const { subject, htmlBody, textBody, attachments } =
         EmailTemplates.getNotificationEmail({
           type: args.type,
           title: args.title,
@@ -118,6 +118,7 @@ export async function notifyBrand(args: NotifyBrandArgs) {
           subject,
           htmlBody,
           textBody,
+          attachments,
         });
       }
     }
@@ -156,20 +157,21 @@ export async function createUserNotification(params: {
     });
 
     if (user?.email) {
-      const { subject, htmlBody, textBody } =
+      const { subject, htmlBody, textBody, attachments } =
         EmailTemplates.getConsumerNotificationEmail({
           type: params.type,
           title: params.title,
           body: params.body,
-          link: params.link,
+          ...(params.link ? { link: params.link } : {}),
         });
 
       await EmailOutboxService.enqueueEmail({
-        userId: params.userId,
+        // userId: params.userId, // Not supported by EmailOutbox yet, defaults to SYSTEM brand
         toEmail: user.email,
         subject,
         htmlBody,
         textBody,
+        attachments,
       });
     }
   }

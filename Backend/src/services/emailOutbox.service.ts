@@ -17,6 +17,7 @@ export class EmailOutboxService {
       filename: string;
       content: Buffer | string;
       encoding?: string;
+      cid?: string;
     }[];
   }) {
     // 1. Create Outbox Item
@@ -38,6 +39,7 @@ export class EmailOutboxService {
         ? att.content.toString("base64")
         : att.content,
       encoding: "base64",
+      cid: att.cid, // Pass CID for embedded images
     }));
 
     // 3. Add to BullMQ

@@ -19,7 +19,7 @@ export default function BrandComplaintDetailsPage() {
         subtitle="Review and respond to consumer issues"
       />
 
-      <div className="max-w-4xl mx-auto space-y-6 pb-20 pt-10 px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto space-y-8 pb-20 pt-10 px-4 sm:px-6">
         <ComplaintSentimentPanel complaintId={complaintId} />
         <ComplaintDetail id={complaintId} />
       </div>

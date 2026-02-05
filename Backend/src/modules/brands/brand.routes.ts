@@ -9,16 +9,37 @@ import {
   getPublicBrandProfileController,
   getBrandTrustScoreController,
   getBrandEnforcementsController,
+  getBrandByIdController,
+  updateBrandWidgetSettingsController,
+  createBrandWidgetKeyController,
 } from "./brand.controller.js";
+import { getTrustForecastController } from "../trust/trust.controller.js";
 import {
   getBrandPrefsController,
   updateBrandPrefsController,
 } from "./brandAlertPreference.controller.js";
 import {
+  getRiskSignalsController,
+  downloadRiskReportController,
+} from "../trust/risk.controller.js";
+import {
   getBrandSentimentDailyController,
   getBrandSentimentEventsController,
   getComplaintSentimentSnapshotController,
 } from "./sentiment.controller.js";
+import {
+  getRootCauseController,
+  getCompetitorAnalysis,
+} from "./analysis.controller.js";
+import { getBenchmarkingController } from "./benchmarking.controller.js";
+import { getBrandAuditController } from "./audit.controller.js";
+import {
+  getTeamMembers,
+  inviteTeamMember,
+  removeTeamMember,
+} from "./team.controller.js";
+import { getSLAConfig, updateSLAConfig } from "./sla.controller.js";
+import { requireFeature } from "../../middleware/featureGate.js";
 import {
   authenticate,
   authenticateAdmin,
@@ -127,6 +148,14 @@ router.post(
 router.get("/public/search", searchBrandsController);
 router.get("/public/:id", getPublicBrandProfileController);
 router.get("/", authenticate, getBrandsController);
+router.get("/:id", authenticate, getBrandByIdController);
+// SPRINT 30: Brand Widget Settings
+router.put(
+  "/:id/widget-settings",
+  authenticate,
+  updateBrandWidgetSettingsController,
+);
+router.post("/:id/widget-keys", authenticate, createBrandWidgetKeyController);
 
 // Admin-only routes
 router.patch(
@@ -144,6 +173,9 @@ router.patch(
 );
 
 router.get("/:id/trust-score", authenticate, getBrandTrustScoreController);
+router.get("/:id/forecast", authenticate, getTrustForecastController);
+router.get("/:id/risk-signals", authenticate, getRiskSignalsController);
+router.get("/:id/risk-report", authenticate, downloadRiskReportController);
 router.get("/:id/enforcements", authenticate, getBrandEnforcementsController);
 
 // SPRINT 28: Brand Alert Preferences
@@ -165,6 +197,50 @@ router.get(
   "/complaints/:id/sentiment",
   authenticate,
   getComplaintSentimentSnapshotController,
+);
+
+router.get("/:id/analysis/root-cause", authenticate, getRootCauseController);
+router.get(
+  "/:id/analysis/benchmarking",
+  authenticate,
+  getBenchmarkingController,
+);
+// SPRINT 30: Competitor Intelligence
+router.get("/:id/analysis/competitors", authenticate, getCompetitorAnalysis);
+
+router.get("/:id/audit/latest", authenticate, getBrandAuditController);
+
+// SPRINT 30: Team & SLAs (Business Plan)
+router.get(
+  "/:id/team",
+  authenticate,
+  requireFeature("teamSLA"),
+  getTeamMembers,
+);
+router.post(
+  "/:id/team/invite",
+  authenticate,
+  requireFeature("teamSLA"),
+  inviteTeamMember,
+);
+router.delete(
+  "/:id/team/:userId",
+  authenticate,
+  requireFeature("teamSLA"),
+  removeTeamMember,
+);
+
+router.get(
+  "/:id/sla-config",
+  authenticate,
+  requireFeature("teamSLA"),
+  getSLAConfig,
+);
+router.put(
+  "/:id/sla-config",
+  authenticate,
+  requireFeature("teamSLA"),
+  updateSLAConfig,
 );
 
 export default router;

@@ -96,6 +96,7 @@ export async function createAdHocInvoice(req: Request, res: Response) {
         htmlBody: emailContent.htmlBody,
         textBody: emailContent.textBody,
         attachments: [
+          ...emailContent.attachments,
           {
             filename: `Invoice-${invoice.invoiceNumber}.pdf`,
             content: pdfBuffer,
@@ -205,6 +206,7 @@ export async function resendInvoice(req: Request, res: Response) {
       htmlBody: emailContent.htmlBody,
       textBody: emailContent.textBody,
       attachments: [
+        ...emailContent.attachments,
         {
           filename: `Invoice-${invoice.invoiceNumber}.pdf`,
           content: pdfBuffer,

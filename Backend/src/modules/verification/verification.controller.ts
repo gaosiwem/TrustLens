@@ -124,7 +124,17 @@ export async function getPendingRequests(req: Request, res: Response) {
       orderBy: { createdAt: "desc" },
     });
 
-    res.json(requests);
+    const mappedRequests = requests.map((req: any) => ({
+      ...req,
+      brand: req.brand
+        ? {
+            ...req.brand,
+            subscription: req.brand.subscriptions?.[0] || null,
+          }
+        : null,
+    }));
+
+    res.json(mappedRequests);
   } catch (error) {
     console.error("Get pending requests error:", error);
     res.status(500).json({ error: "Internal server error" });

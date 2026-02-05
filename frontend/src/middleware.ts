@@ -12,7 +12,7 @@ export default withAuth(
     pages: {
       signIn: "/auth/login",
     },
-  }
+  },
 );
 
 export const config = {
@@ -27,6 +27,6 @@ export const config = {
      * - public (public folder)
      * - $ (landing page - root path)
      */
-    "/((?!auth|api/auth|brand|categories|complaints|reviews|_next/static|_next/image|favicon.ico|$).*)",
+    "/((?!auth|api/auth|api/public|widgets|brand|categories|complaints|reviews|_next/static|_next/image|favicon.ico|logo.png|$).*)",
   ],
 };

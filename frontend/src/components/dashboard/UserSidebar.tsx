@@ -44,12 +44,11 @@ const UserSidebar: FC<UserSidebarProps> = ({ isOpen, onClose }) => {
 
   const BrandLogo = () => (
     <Link href="/" className="flex items-center gap-3 px-2 mb-8 group">
-      <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 group-hover:scale-105 transition-transform">
-        <span className="text-white font-black text-xl italic">T</span>
-      </div>
-      <span className="text-2xl font-black tracking-tighter italic">
-        Trust<span className="text-primary">Lens</span>
-      </span>
+      <img
+        src="/logo.png"
+        alt="TrustLens"
+        className="h-24 w-auto group-hover:scale-105 transition-transform"
+      />
     </Link>
   );
 
@@ -134,19 +133,6 @@ const UserSidebar: FC<UserSidebarProps> = ({ isOpen, onClose }) => {
                 </Link>
               );
             })}
-          </div>
-
-          <div className="mt-8 p-6 rounded-4xl bg-primary/5 border border-primary/10 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-primary/10 rounded-full -mr-8 -mt-8 blur-2xl group-hover:bg-primary/20 transition-colors" />
-            <p className="text-[10px] font-black tracking-widest text-primary uppercase mb-2">
-              Pro Support
-            </p>
-            <p className="text-xs font-bold text-foreground/70 leading-relaxed italic mb-4">
-              Get priority assistance and AI insights.
-            </p>
-            <button className="w-full py-2.5 bg-background border border-border rounded-xl text-xs font-black shadow-sm hover:shadow-md transition-all">
-              Upgrade Now
-            </button>
           </div>
         </div>
       </aside>

@@ -20,6 +20,7 @@ import verificationRoutes from "./modules/verification/verification.routes.js";
 import verificationAdminRoutes from "./modules/verificationAdmin/verificationAdmin.routes.js";
 import governanceRoutes from "./modules/governance/governance.routes.js";
 import analyticsRoutes from "./modules/analytics/analytics.routes.js";
+import widgetRoutes from "./modules/widgets/widget.routes.js";
 import { apiLimiter } from "./middleware/rateLimit.middleware.js";
 import {
   errorHandler,
@@ -89,6 +90,7 @@ app.use("/verified", verificationRoutes);
 app.use("/admin/verification", verificationAdminRoutes);
 app.use("/admin/governance", governanceRoutes);
 app.use("/analytics", analyticsRoutes);
+app.use("/widgets", widgetRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

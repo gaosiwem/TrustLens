@@ -1,4 +1,37 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export class EmailTemplates {
+  private static getLogoAttachment() {
+    try {
+      // Resolve path to frontend/public/logo.png
+      // __dirname is .../Backend/src/services/email
+      const logoPath = path.join(
+        __dirname,
+        "../../../../frontend/public/logo.png",
+      );
+      if (fs.existsSync(logoPath)) {
+        const content = fs.readFileSync(logoPath).toString("base64");
+        return {
+          filename: "logo.png",
+          content: content,
+          encoding: "base64",
+          cid: "trustlens-logo", // Referenced in HTML as <img src="cid:trustlens-logo"/>
+        };
+      } else {
+        console.warn(`Logo not found at ${logoPath}`);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error reading logo file:", error);
+      return null;
+    }
+  }
+
   private static getBaseTemplate(title: string, content: string): string {
     return `
       <!DOCTYPE html>
@@ -175,8 +208,8 @@ export class EmailTemplates {
             
             <!-- Header -->
             <div class="header">
-              <a href="${process.env.FRONTEND_URL || "http://localhost:3000"}" class="logo-text">
-                TrustLens<span class="logo-dot">.</span>
+              <a href="${process.env.FRONTEND_URL || "http://localhost:3000"}" style="display: inline-block;">
+                <img src="cid:trustlens-logo" alt="TrustLens" height="160" style="height: 160px; width: auto; border: 0;" />
               </a>
             </div>
             
@@ -212,7 +245,12 @@ export class EmailTemplates {
     metadata?: any;
     reviewRating?: number;
     reviewComment?: string;
-  }): { subject: string; htmlBody: string; textBody: string } {
+  }): {
+    subject: string;
+    htmlBody: string;
+    textBody: string;
+    attachments: any[];
+  } {
     const isUrgent =
       args.type === "NEGATIVE_SENTIMENT" || args.type === "URGENCY_ALERT";
     const isSuccess =
@@ -287,10 +325,14 @@ export class EmailTemplates {
       extraText += `\n\nRating: ${args.reviewRating}/5 Stars`;
     if (args.reviewComment) extraText += `\nComment: "${args.reviewComment}"`;
 
+    const logo = this.getLogoAttachment();
+    const attachments = logo ? [logo] : [];
+
     return {
       subject: `[TrustLens] ${args.title}`,
       htmlBody: this.getBaseTemplate(args.title, htmlContent),
       textBody: `${args.title}\n\n${args.body}${extraText}\n\n${args.link ? `View details: ${args.link}` : ""}`,
+      attachments,
     };
   }
 
@@ -299,7 +341,12 @@ export class EmailTemplates {
     title: string;
     body: string;
     link?: string;
-  }): { subject: string; htmlBody: string; textBody: string } {
+  }): {
+    subject: string;
+    htmlBody: string;
+    textBody: string;
+    attachments: any[];
+  } {
     let badgeClass = "bg-blue";
     let badgeText = "Update";
 
@@ -333,17 +380,26 @@ export class EmailTemplates {
       </p>
     `;
 
+    const logo = this.getLogoAttachment();
+    const attachments = logo ? [logo] : [];
+
     return {
       subject: `[TrustLens] ${args.title}`,
       htmlBody: this.getBaseTemplate(args.title, content),
       textBody: `${args.title}\n\n${args.body}\n\n${args.link ? `View update: ${args.link}` : ""}`,
+      attachments,
     };
   }
 
   static getWelcomeEmail(
     name: string,
     verifyLink: string,
-  ): { subject: string; htmlBody: string; textBody: string } {
+  ): {
+    subject: string;
+    htmlBody: string;
+    textBody: string;
+    attachments: any[];
+  } {
     const content = `
         <h1>Welcome to TrustLens, ${name}!</h1>
         <p>
@@ -360,17 +416,26 @@ export class EmailTemplates {
         </p>
       `;
 
+    const logo = this.getLogoAttachment();
+    const attachments = logo ? [logo] : [];
+
     return {
       subject: "Welcome to TrustLens! Please verify your email",
       htmlBody: this.getBaseTemplate("Welcome to TrustLens", content),
       textBody: `Welcome to TrustLens, ${name}!\n\nPlease verify your email: ${verifyLink}`,
+      attachments,
     };
   }
 
   static getBrandInvitationEmail(
     brandName: string,
     complaintId: string,
-  ): { subject: string; htmlBody: string; textBody: string } {
+  ): {
+    subject: string;
+    htmlBody: string;
+    textBody: string;
+    attachments: any[];
+  } {
     const claimLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/brand/claim?brand=${encodeURIComponent(brandName)}`;
     const complaintLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/brand/complaints/${complaintId}`;
 
@@ -397,10 +462,14 @@ export class EmailTemplates {
       </p>
     `;
 
+    const logo = this.getLogoAttachment();
+    const attachments = logo ? [logo] : [];
+
     return {
       subject: "Your brand's reputation on TrustLens: An invitation to connect",
       htmlBody: this.getBaseTemplate("Invitation to Connect", content),
       textBody: `Your brand's reputation on TrustLens: An invitation to connect\n\nWe believe every story has two sides. A consumer has recently shared their experience with ${brandName} on TrustLens.\n\nView Consumer Feedback: ${complaintLink}\n\nClaim your profile: ${claimLink}\n\n(Interacting with consumers is free.)`,
+      attachments,
     };
   }
 
@@ -410,7 +479,12 @@ export class EmailTemplates {
     currency: string;
     date: Date;
     link: string;
-  }): { subject: string; htmlBody: string; textBody: string } {
+  }): {
+    subject: string;
+    htmlBody: string;
+    textBody: string;
+    attachments: any[];
+  } {
     const formatter = new Intl.NumberFormat("en-ZA", {
       style: "currency",
       currency: args.currency,
@@ -445,10 +519,14 @@ export class EmailTemplates {
       </p>
     `;
 
+    const logo = this.getLogoAttachment();
+    const attachments = logo ? [logo] : [];
+
     return {
       subject: `Payment Receipt: ${args.invoiceNumber}`,
       htmlBody: this.getBaseTemplate("Payment Receipt", content),
       textBody: `Payment Receipt: ${args.invoiceNumber}\n\nAmount: ${formattedAmount}\nDate: ${args.date.toLocaleDateString()}\n\nDownload: ${args.link}`,
+      attachments,
     };
   }
 
@@ -456,6 +534,7 @@ export class EmailTemplates {
     subject: string;
     htmlBody: string;
     textBody: string;
+    attachments: any[];
   } {
     const content = `
       <h1>Reset Your Password</h1>
@@ -473,10 +552,110 @@ export class EmailTemplates {
       </p>
     `;
 
+    const logo = this.getLogoAttachment();
+    const attachments = logo ? [logo] : [];
+
     return {
       subject: "Reset your TrustLens password",
       htmlBody: this.getBaseTemplate("Reset Password", content),
       textBody: `Reset your TrustLens password\n\nClick here: ${resetLink}\n\nThis link expires in 1 hour.`,
+      attachments,
+    };
+  }
+  static getComplaintReminderEmail(
+    brandName: string,
+    complaint: any,
+  ): {
+    subject: string;
+    htmlBody: string;
+    textBody: string;
+    attachments: any[];
+  } {
+    const complaintLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/brand/complaints/${complaint.id}`;
+
+    // Calculate days pending
+    const daysPending = Math.floor(
+      (Date.now() - new Date(complaint.createdAt).getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+
+    const content = `
+      <div class="badge bg-amber">Action Required</div>
+      <h1>Complaint Pending Response</h1>
+      <p>
+        The following complaint for <strong>${brandName}</strong> has been pending for ${daysPending} days.
+      </p>
+      
+      <div style="background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 24px;">
+        <h3 style="margin-top: 0; font-size: 16px;">${complaint.title}</h3>
+        <p style="font-size: 14px; color: #475569; margin-bottom: 0;">${complaint.description ? complaint.description.substring(0, 150) + "..." : "No description provided."}</p>
+      </div>
+
+      <p>
+        A timely response helps build trust with your customers and improves your reputation score.
+      </p>
+
+      <div class="button-container">
+        <a href="${complaintLink}" class="button">View & Respond</a>
+      </div>
+    `;
+
+    const logo = this.getLogoAttachment();
+    const attachments = logo ? [logo] : [];
+
+    return {
+      subject: `Reminder: Complaint Pending Response - ${complaint.title}`,
+      htmlBody: this.getBaseTemplate("Complaint Reminder", content),
+      textBody: `Reminder: Complaint Pending Response\n\nThe complaint "${complaint.title}" has been pending for ${daysPending} days.\n\nView & Respond: ${complaintLink}`,
+      attachments,
+    };
+  }
+
+  static getBrandAuditEmail(
+    brandName: string,
+    pdfBuffer: Buffer,
+    quarter: string,
+  ): {
+    subject: string;
+    htmlBody: string;
+    textBody: string;
+    attachments: any[];
+  } {
+    const content = `
+      <div class="badge bg-purple">Strategic Intelligence</div>
+      <h1>Your Quarterly Brand Health Audit</h1>
+      <p>
+        The periodic performance review for <strong>${brandName}</strong> is now available.
+      </p>
+      
+      <div style="background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 24px;">
+        <h3 style="margin-top: 0; font-size: 16px;">${quarter} Performance Report</h3>
+        <p style="font-size: 14px; color: #475569; margin-bottom: 0;">
+          Attached is your detailed analysis of complaint resolution metrics, sentiment trends, and category insights for the past quarter.
+        </p>
+      </div>
+
+      <p>
+        Use these insights to refine your customer service strategy and improve your TrustScore.
+      </p>
+    `;
+
+    const logo = this.getLogoAttachment();
+    const attachments: any[] = [
+      {
+        filename: `TrustLens-Audit-${quarter.replace(" ", "-")}.pdf`,
+        content: pdfBuffer,
+        contentType: "application/pdf",
+      },
+    ];
+
+    if (logo) attachments.push(logo);
+
+    return {
+      subject: `Quarterly Brand Health Audit - ${quarter} - ${brandName}`,
+      htmlBody: this.getBaseTemplate("Reputation Audit", content),
+      textBody: `Your Quarterly Brand Health Audit for ${quarter} is attached.\n\nPlease review your performance metrics to improve your customer satisfaction.\n\nTrustLens Team`,
+      attachments,
     };
   }
 }

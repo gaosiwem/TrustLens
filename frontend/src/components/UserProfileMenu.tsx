@@ -92,7 +92,7 @@ export default function UserProfileMenu() {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    signOut({ callbackUrl: "/auth/login" });
+                    signOut({ callbackUrl: "/" });
                   }}
                   className={classNames(
                     active ? "bg-gray-100 dark:bg-gray-700" : "",

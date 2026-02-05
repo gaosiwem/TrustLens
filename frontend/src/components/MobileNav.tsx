@@ -30,9 +30,11 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <Link href="/" onClick={onClose}>
-            <span className="font-bold text-xl hover:text-primary transition-colors cursor-pointer">
-              TrustLens
-            </span>
+            <img
+              src="/logo.png"
+              alt="TrustLens"
+              className="h-8 w-auto hover:opacity-80 transition-opacity cursor-pointer"
+            />
           </Link>
           <button
             onClick={onClose}

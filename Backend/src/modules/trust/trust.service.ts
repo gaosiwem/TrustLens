@@ -150,3 +150,76 @@ export async function getLatestTrustScore(
     orderBy: { evaluatedAt: "desc" },
   });
 }
+
+/**
+ * Predicts the Trust Trend for the next 3 months using Linear Regression.
+ * Returns null if insufficient data (< 2 data points).
+ */
+export async function predictTrustTrend(
+  entityType: "USER" | "BRAND",
+  entityId: string,
+) {
+  // 1. Fetch historical scores (last 6 months)
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+  const history = await prisma.trustScore.findMany({
+    where: {
+      entityType,
+      entityId,
+      evaluatedAt: { gte: sixMonthsAgo },
+    },
+    orderBy: { evaluatedAt: "asc" },
+  });
+
+  if (history.length < 2) {
+    return null; // Not enough data for a forecast
+  }
+
+  // 2. Perform Linear Regression (Least Squares)
+  // X = Time (days from start), Y = Score
+  if (!history[0]?.evaluatedAt) return null;
+  const startTime = history[0].evaluatedAt.getTime();
+  const points = history.map((h) => ({
+    x: (h.evaluatedAt.getTime() - startTime) / (1000 * 60 * 60 * 24), // Days
+    y: h.score,
+  }));
+
+  const n = points.length;
+  const sumX = points.reduce((acc, p) => acc + p.x, 0);
+  const sumY = points.reduce((acc, p) => acc + p.y, 0);
+  const sumXY = points.reduce((acc, p) => acc + p.x * p.y, 0);
+  const sumXX = points.reduce((acc, p) => acc + p.x * p.x, 0);
+
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+
+  // 3. Project next 3 months (30, 60, 90 days from TODAY)
+  // Note: the regression is based on days from history[0]
+  const lastItem = history[history.length - 1];
+  if (!lastItem?.evaluatedAt) return null;
+  const lastDate = lastItem.evaluatedAt;
+  const daysSinceStart =
+    (lastDate.getTime() - startTime) / (1000 * 60 * 60 * 24);
+
+  const forecast = [30, 60, 90].map((daysForward) => {
+    const futureX = daysSinceStart + daysForward;
+    let predictedScore = slope * futureX + intercept;
+    // Clamp score 0-100
+    predictedScore = Math.max(0, Math.min(100, predictedScore));
+    return {
+      monthsForward: daysForward / 30,
+      score: Math.round(predictedScore),
+    };
+  });
+
+  const trendDirection =
+    slope > 0.05 ? "UP" : slope < -0.05 ? "DOWN" : "STABLE";
+
+  return {
+    currentScore: history[history.length - 1]?.score || 0,
+    trendDirection,
+    forecast,
+    historyCount: n,
+  };
+}

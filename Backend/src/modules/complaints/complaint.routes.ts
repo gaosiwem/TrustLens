@@ -6,6 +6,7 @@ import {
   getComplaintByIdController,
   publicRecentComplaintsController,
   searchComplaintsController,
+  assignComplaintController,
 } from "./complaint.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { requireRole } from "../../middleware/role.middleware.js";
@@ -18,7 +19,7 @@ router.post(
   "/",
   authenticate,
   upload.array("attachments", 5),
-  createComplaintController
+  createComplaintController,
 );
 router.get("/", authenticate, listComplaintsController);
 router.get("/public/search", searchComplaintsController);
@@ -28,14 +29,15 @@ router.get(
   "/moderation",
   authenticate,
   requireRole("MODERATOR"),
-  listComplaintsController
+  listComplaintsController,
 );
 router.get("/clusters", getClustersController);
 router.patch(
   "/:id/status",
   authenticate,
   requireRole("MODERATOR"),
-  updateStatusController
+  updateStatusController,
 );
+router.patch("/:id/assign", authenticate, assignComplaintController);
 
 export default router;

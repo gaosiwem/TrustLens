@@ -56,6 +56,12 @@ interface BrandProfile {
     limit: number;
     totalPages: number;
   };
+  subscriptions?: any[];
+  widgetStyles?: {
+    primaryColor?: string;
+    starColor?: string;
+    fontFamily?: string;
+  };
 }
 
 export default function ManagerBrandProfilePage() {
@@ -187,6 +193,7 @@ export default function ManagerBrandProfilePage() {
                           max={5}
                           initialRating={profile?.stats.averageRating || 0}
                           readOnly={true}
+                          color={profile?.widgetStyles?.starColor}
                         />
                         <span className="text-2xl font-black text-primary">
                           {profile?.stats.averageRating.toFixed(1)}
@@ -394,6 +401,7 @@ export default function ManagerBrandProfilePage() {
                 websiteUrl: profile.websiteUrl,
                 supportEmail: profile.supportEmail,
                 supportPhone: profile.supportPhone,
+                subscriptions: profile.subscriptions || [],
               }
             : null
         }

@@ -79,30 +79,20 @@ async function main() {
           riskSignals: true,
           rootCauseAI: true,
           teamSLA: true,
-          historicalBenchmarking: false,
+          historicalBenchmarking: true,
           apiAccess: false,
           customLLM: false,
           maxTeamSeats: 10,
         },
       },
       {
-        code: "BASIC_VERIFIED",
-        name: "Basic Verification",
-        monthlyPrice: 50000, // R500.00 / year (treated as single payment)
+        code: "VERIFIED",
+        name: "Verified Brand",
+        monthlyPrice: 50000,
         features: {
           verifiedBadge: true,
           badgeColor: "green",
           annualRevalidation: true,
-          standardQueue: true,
-        },
-      },
-      {
-        code: "PREMIUM_VERIFIED",
-        name: "Premium Verification",
-        monthlyPrice: 150000, // R1500.00 / year
-        features: {
-          verifiedBadge: true,
-          badgeColor: "green",
           priorityQueue: true,
           disputeClarification: "fast",
           auditTrail: true,

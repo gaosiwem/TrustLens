@@ -5,11 +5,15 @@ import { initializeSocket } from "./utils/socket.js";
 import { initSentimentWorker } from "./workers/sentiment.worker.js";
 import { initEmailWorker } from "./workers/email.worker.js";
 import logger from "./config/logger.js";
+import { CronService } from "./services/cron.service.js"; // Import CronService
 
 const server = createServer(app);
 
 // Initialize Socket.IO
 initializeSocket(server);
+
+// Initialize Scheduled Jobs
+CronService.init();
 
 // Initialize workers (gracefully handles Redis unavailability)
 try {
@@ -31,7 +35,24 @@ try {
   logger.error("Failed to initialize workers:", error);
 }
 
-server.listen(ENV.PORT, () => {
+const runningServer = server.listen(ENV.PORT, () => {
   console.log(`Server running on port ${ENV.PORT}`);
   console.log(`Socket.IO ready for real-time notifications`);
 });
+
+// Graceful Shutdown
+const shutdown = () => {
+  console.log("Stopping server...");
+  runningServer.close(() => {
+    console.log("Server stopped");
+    process.exit(0);
+  });
+  // Force close if it takes too long
+  setTimeout(() => {
+    console.error("Forcing server shutdown");
+    process.exit(1);
+  }, 10000);
+};
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

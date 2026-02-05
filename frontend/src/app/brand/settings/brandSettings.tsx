@@ -1,7 +1,9 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { FeatureGate } from "@/components/subscription/FeatureGate";
+import TeamManagementWidget from "@/components/brand/TeamManagementWidget";
+import SLAConfigWidget from "@/components/brand/SLAConfigWidget";
+import WidgetSettings from "@/components/brand/WidgetSettings";
 import {
   Card,
   CardContent,
@@ -21,6 +23,7 @@ import InputField from "@/components/InputField";
 import Button from "@/components/Button";
 import {
   User,
+  Users,
   Building,
   Bell,
   Shield,
@@ -37,25 +40,81 @@ export default function BrandSettings() {
   const [email, setEmail] = useState("");
   const [brandName, setBrandName] = useState("");
   const [website, setWebsite] = useState("");
+  const [description, setDescription] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isPro, setIsPro] = useState(false);
+  const [brandId, setBrandId] = useState<string | null>(null);
 
   useEffect(() => {
     if (session?.user) {
       setUserName(session.user.name || "");
       setEmail(session.user.email || "");
-      // Mock brand data - in a real app, this would come from an API
-      setBrandName("TechFlow Systems");
-      setWebsite("https://techflow.example");
+      // @ts-ignore
+      const activeBrandId = session.user.brandId;
+
+      if (activeBrandId) {
+        setBrandId(activeBrandId);
+        // Fetch brand data
+        fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/brands/public/${activeBrandId}`,
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            setBrandName(data.name || "");
+            setWebsite(data.websiteUrl || "");
+            setDescription(data.description || "");
+            setLogoUrl(data.logoUrl || "");
+
+            // Check subscription
+            const hasPro = data.subscriptions?.some(
+              (sub: any) =>
+                sub.status === "ACTIVE" &&
+                ["PRO", "BUSINESS", "ENTERPRISE", "PREMIUM_VERIFIED"].includes(
+                  sub.plan.code,
+                ),
+            );
+            setIsPro(!!hasPro);
+          })
+          .catch((err) => console.error("Failed to fetch brand:", err));
+      }
     }
   }, [session]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!brandId) return;
+
     setLoading(true);
-    setTimeout(() => {
-      toast.success("Brand settings updated successfully!");
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/brands/${brandId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.accessToken}`,
+          },
+          body: JSON.stringify({
+            name: brandName,
+            websiteUrl: website,
+            description: isPro ? description : undefined, // Don't send if not allowed, though backend blocks it too
+          }),
+        },
+      );
+
+      if (res.ok) {
+        toast.success("Brand settings updated successfully!");
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Failed to update settings");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -80,6 +139,14 @@ export default function BrandSettings() {
           <Shield className="w-4 h-4" />
           Security
         </TabsTrigger>
+        <TabsTrigger value="widgets" className="flex items-center gap-2 px-6">
+          <LinkIcon className="w-4 h-4" />
+          Widgets
+        </TabsTrigger>
+        <TabsTrigger value="team" className="flex items-center gap-2 px-6">
+          <Users className="w-4 h-4" />
+          Team & SLAs
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="account">
@@ -91,7 +158,7 @@ export default function BrandSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleUpdate} className="space-y-6 max-w-2xl">
+            <form className="space-y-6 max-w-2xl">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <InputField
                   label="Full Name"
@@ -101,8 +168,8 @@ export default function BrandSettings() {
                 />
                 <InputField label="Business Email" value={email} disabled />
               </div>
-              <Button type="submit" className="px-8">
-                {loading ? "Saving..." : "Save Changes"}
+              <Button disabled className="px-8 cursor-not-allowed opacity-70">
+                Managed by Admin
               </Button>
             </form>
           </CardContent>
@@ -121,7 +188,15 @@ export default function BrandSettings() {
             <div className="space-y-8">
               <div className="flex items-center gap-6 p-4 rounded-2xl bg-muted/30 border border-dashed border-border">
                 <div className="w-24 h-24 rounded-2xl bg-white border border-border flex items-center justify-center relative group overflow-hidden shadow-sm">
-                  <Building className="w-10 h-10 text-muted-foreground group-hover:opacity-20 transition-opacity" />
+                  {logoUrl ? (
+                    <img
+                      src={logoUrl}
+                      alt="Brand Logo"
+                      className="w-full h-full object-contain p-2"
+                    />
+                  ) : (
+                    <Building className="w-10 h-10 text-muted-foreground group-hover:opacity-20 transition-opacity" />
+                  )}
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                     <Camera className="w-6 h-6 text-white" />
                   </div>
@@ -153,13 +228,48 @@ export default function BrandSettings() {
                   icon="link"
                 />
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-sm font-bold">Brand Biography</label>
-                  <textarea
-                    className="w-full h-32 bg-background border border-border rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all"
-                    placeholder="Tell consumers about your commitment to trust..."
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold flex items-center gap-2">
+                      Brand Biography
+                      {!isPro && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] border-primary/20 text-primary bg-primary/5 h-5 px-1.5 gap-1"
+                        >
+                          <Shield className="w-3 h-3" /> PRO
+                        </Badge>
+                      )}
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <textarea
+                      className={`w-full h-32 bg-background border rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all ${!isPro ? "opacity-50 cursor-not-allowed bg-muted/20" : "border-border"}`}
+                      placeholder={
+                        isPro
+                          ? "Tell consumers about your commitment to trust..."
+                          : "Upgrade to PRO to customize your brand biography."
+                      }
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      disabled={!isPro}
+                    />
+                    {!isPro && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="shadow-sm border border-border bg-white/80 backdrop-blur-sm hover:bg-white"
+                          onClick={() =>
+                            (window.location.href = "/brand/subscription")
+                          }
+                        >
+                          Upgrade to Unlock
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <Button type="submit" className="px-8">
+                <Button type="submit" className="px-8" disabled={loading}>
                   {loading ? "Saving..." : "Update Assets"}
                 </Button>
               </form>
@@ -197,6 +307,19 @@ export default function BrandSettings() {
             <Button variant="outline">Configure Security</Button>
           </CardContent>
         </Card>
+      </TabsContent>
+
+      <TabsContent value="widgets">
+        <WidgetSettings />
+      </TabsContent>
+
+      <TabsContent value="team">
+        <FeatureGate feature="teamSLA">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TeamManagementWidget />
+            <SLAConfigWidget />
+          </div>
+        </FeatureGate>
       </TabsContent>
     </Tabs>
   );

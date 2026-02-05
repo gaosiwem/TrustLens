@@ -2,12 +2,21 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function simulateIntelligencePayment() {
-  // Hardcoded for debugging user issue
-  const brandId = "fd766cd1-7196-4114-9438-ba1ec7c4ad66";
+  // Find Checkers brand
+  const brand = await prisma.brand.findFirst({
+    where: { name: "Checkers" },
+  });
+
+  if (!brand) {
+    console.error("Checkers brand not found");
+    return;
+  }
+
+  const brandId = brand.id;
 
   // Intelligence & Monitoring Plans (non-Verified)
   // Options: FREE, PRO, BUSINESS, ENTERPRISE
-  const planCode = "PRO"; // Change to BUSINESS or ENTERPRISE if needed
+  const planCode = "BUSINESS"; // Change to BUSINESS or ENTERPRISE if needed
 
   const plan = await prisma.subscriptionPlan.findUnique({
     where: { code: planCode },
@@ -19,7 +28,7 @@ async function simulateIntelligencePayment() {
     return;
   }
 
-  console.log(`\n🚀 Simulating Intelligence payment for brand: Mit Mak Motors`);
+  console.log(`\n🚀 Simulating Intelligence payment for brand: ${brand.name}`);
   console.log(`Plan: ${plan.name} (${planCode})`);
   console.log(`Price: R${plan.monthlyPrice}/month`);
 
@@ -58,6 +67,18 @@ async function simulateIntelligencePayment() {
     console.log(`✅ Created new BrandSubscription: ${subscription.id}`);
   }
 
+  // Update Brand table with verified status and widget plan
+  const widgetPlans = ["PRO", "BUSINESS", "ENTERPRISE", "FREE"];
+  const matchedPlan = widgetPlans.find((p) => planCode.includes(p));
+
+  if (matchedPlan) {
+    await prisma.brand.update({
+      where: { id: brandId },
+      data: { widgetPlan: matchedPlan as any },
+    });
+    console.log(`✅ Updated Brand table (widgetPlan: ${matchedPlan})`);
+  }
+
   // Create payment transaction
   const transaction = await prisma.paymentTransaction.create({
     data: {
@@ -85,9 +106,17 @@ async function simulateIntelligencePayment() {
   console.log(`\n📋 All active subscriptions for this brand:`);
   allSubs.forEach((sub) => {
     console.log(
-      `  - ${sub.plan.name} (expires: ${sub.endsAt?.toLocaleDateString()})`,
+      `  - ${sub.plan.name} (R${(sub.plan.monthlyPrice / 100).toFixed(2)}) (expires: ${sub.endsAt?.toLocaleDateString()})`,
     );
   });
+
+  const totalMonthlyPrice = allSubs.reduce(
+    (acc, sub) => acc + (sub.plan.monthlyPrice || 0),
+    0,
+  );
+  console.log(
+    `\n💰 Total Combined Monthly Payment: R${(totalMonthlyPrice / 100).toFixed(2)}`,
+  );
 }
 
 simulateIntelligencePayment()

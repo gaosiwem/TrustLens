@@ -76,9 +76,10 @@ router.get(
   authenticateAdmin,
   async (req: Request, res: Response) => {
     try {
+      const { status = "PENDING" } = req.query;
       const claims = await prisma.brandClaim.findMany({
         where: {
-          status: "PENDING",
+          status: status as BrandClaimStatus,
         },
         orderBy: {
           createdAt: "desc",

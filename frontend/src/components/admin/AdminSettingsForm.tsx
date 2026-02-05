@@ -4,6 +4,7 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { toast } from "sonner";
 
 const platformSettingsSchema = z.object({
   platformName: z
@@ -39,7 +40,7 @@ export function AdminSettingsForm() {
   const onSubmit = async (data: PlatformSettingsForm) => {
     console.log("Platform settings:", data);
     // TODO: Call API to save settings
-    alert("Settings saved successfully!");
+    toast.success("Settings saved successfully!");
   };
 
   return (

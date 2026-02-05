@@ -6,6 +6,8 @@ interface RatingStarsProps {
   initialRating?: number;
   onChange?: (value: number) => void;
   readOnly?: boolean;
+  color?: string;
+  size?: "sm" | "md" | "lg";
 }
 
 export default function RatingStars({
@@ -13,6 +15,8 @@ export default function RatingStars({
   initialRating = 0,
   onChange,
   readOnly = false,
+  color,
+  size = "md",
 }: RatingStarsProps) {
   const [rating, setRating] = useState(initialRating);
   const [hover, setHover] = useState(0);
@@ -37,17 +41,28 @@ export default function RatingStars({
             onMouseEnter={() => !readOnly && setHover(starValue)}
             onMouseLeave={() => !readOnly && setHover(0)}
             disabled={readOnly}
-            className={`text-2xl transition-colors ${
+            className={`${
+              size === "sm"
+                ? "text-lg"
+                : size === "lg"
+                  ? "text-3xl"
+                  : "text-2xl"
+            } transition-colors ${
               readOnly ? "cursor-default" : "cursor-pointer hover:scale-110"
             }`}
           >
             <span
               className={`material-symbols-outlined ${
                 isFilled
-                  ? "text-yellow-400"
+                  ? color
+                    ? ""
+                    : "text-yellow-400"
                   : "text-gray-300 dark:text-gray-600"
               }`}
-              style={{ fontVariationSettings: "'FILL' 1" }}
+              style={{
+                fontVariationSettings: "'FILL' 1",
+                color: isFilled && color ? color : undefined,
+              }}
             >
               star
             </span>

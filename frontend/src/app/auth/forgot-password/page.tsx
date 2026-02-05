@@ -3,20 +3,56 @@ import InputField from "@/components/InputField";
 import Button from "@/components/Button";
 import { useState } from "react";
 import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+});
+
+type ForgotPasswordData = z.infer<typeof forgotPasswordSchema>;
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleReset = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm<ForgotPasswordData>({
+    resolver: zodResolver(forgotPasswordSchema),
+  });
+
+  const email = watch("email");
+
+  const onSubmit = async (data: ForgotPasswordData) => {
     setLoading(true);
-    // Mocking the reset link sending
-    setTimeout(() => {
-      setSubmitted(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/forgot-password`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        },
+      );
+
+      // Always show success to prevent enumeration, unless actual error (e.g. 500)
+      if (response.ok || response.status === 400) {
+        setSubmitted(true);
+      } else {
+        toast.error("Something went wrong. Please try again.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Network error. Please try again.");
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -34,25 +70,33 @@ export default function ForgotPasswordPage() {
         </div>
 
         {!submitted ? (
-          <form onSubmit={handleReset} className="flex flex-col gap-4">
-            <InputField
-              label="Email Address"
-              type="email"
-              icon="mail"
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <Button type="submit">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex flex-col gap-4"
+          >
+            <div>
+              <InputField
+                label="Email Address"
+                type="email"
+                icon={
+                  <span className="material-symbols-outlined text-lg">
+                    mail
+                  </span>
+                }
+                placeholder="name@example.com"
+                {...register("email")}
+                error={errors.email?.message}
+              />
+            </div>
+            <Button type="submit" disabled={loading}>
               {loading ? "Sending link..." : "Send Reset Link"}
             </Button>
           </form>
         ) : (
           <div className="flex flex-col gap-4 text-center">
             <p className="text-secondary font-medium">
-              Please check your inbox at <strong>{email}</strong> and follow the
-              instructions to reset your password.
+              If an account exists for <strong>{email}</strong>, you will
+              receive password reset instructions shortly.
             </p>
             <Button onClick={() => setSubmitted(false)}>Resend Link</Button>
           </div>

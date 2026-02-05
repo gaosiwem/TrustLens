@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import NextImage from "next/image";
 import { useSession } from "next-auth/react";
 import DarkModeToggle from "./DarkModeToggle";
 
@@ -23,15 +24,17 @@ export default function PublicHeader({
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-32">
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-2xl">
-                shield
-              </span>
-              <span className="text-xl font-black tracking-tighter">
-                TrustLens
-              </span>
+              <NextImage
+                src="/logo.png"
+                alt="TrustLens"
+                width={300}
+                height={100}
+                className="h-24 w-auto"
+                priority
+              />
             </Link>
             <Link
               href="/complaints"

@@ -27,6 +27,7 @@ export async function register(email: string, password: string, name?: string) {
     subject: welcomeEmail.subject,
     htmlBody: welcomeEmail.htmlBody,
     textBody: welcomeEmail.textBody,
+    attachments: welcomeEmail.attachments,
     brandId: user.managedBrands[0]?.id || "system", // Fallback to 'system' if no brand
   });
 
@@ -145,7 +146,7 @@ export async function requestPasswordReset(email: string) {
     { expiresIn: "1h" },
   );
 
-  const resetLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${token}`;
+  const resetLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/auth/reset-password?token=${token}`;
 
   const emailContent = EmailTemplates.getPasswordResetEmail(resetLink);
 
@@ -154,6 +155,7 @@ export async function requestPasswordReset(email: string) {
     subject: emailContent.subject,
     htmlBody: emailContent.htmlBody,
     textBody: emailContent.textBody,
+    attachments: emailContent.attachments,
     brandId: "system",
   });
 

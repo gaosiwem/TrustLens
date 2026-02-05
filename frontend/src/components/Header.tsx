@@ -37,9 +37,11 @@ const Header: FC<Props> = ({ toggleSidebar }) => {
           <FaBars size={20} className="text-muted-foreground" />
         </button>
         <Link href="/">
-          <h1 className="text-lg font-bold text-primary cursor-pointer hover:opacity-80 transition-opacity">
-            TrustLens
-          </h1>
+          <img
+            src="/logo.png"
+            alt="TrustLens"
+            className="h-20 w-auto cursor-pointer hover:opacity-80 transition-opacity"
+          />
         </Link>
         <Link
           href="/complaints"

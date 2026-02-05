@@ -16,11 +16,12 @@ interface BrandItem {
   logoUrl?: string;
   isVerified: boolean;
   createdAt: string;
-  subscription?: {
+  subscriptions: Array<{
     id: string;
     status: string;
     plan: { code: string; name: string; monthlyPrice: number };
-  };
+  }>;
+  totalMonthlyPrice: number;
 }
 export default function BrandManager() {
   const { data: session } = useSession();
@@ -179,12 +180,18 @@ export default function BrandManager() {
     {
       header: "Status",
       accessor: (item) => (
-        <span
-          className={`px-2 py-1 rounded-full text-[10px] font-bold tracking-wider ${item.isVerified ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"}`}
-        >
-          {" "}
-          {item.isVerified ? "Verified" : "Unverified"}{" "}
-        </span>
+        <div className="flex flex-col gap-1">
+          <span
+            className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider w-fit ${item.isVerified ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"}`}
+          >
+            {item.isVerified ? "VERIFIED" : "UNVERIFIED"}
+          </span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider w-fit ${item.subscriptions.length > 0 ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"}`}
+          >
+            {item.subscriptions.length > 0 ? "ACTIVE" : "INACTIVE"}
+          </span>
+        </div>
       ),
       sortable: true,
       sortKey: "isVerified",
@@ -202,27 +209,56 @@ export default function BrandManager() {
     },
     {
       header: "Plan",
-      accessor: (item) => (
-        <span className="text-sm font-medium">
-          {" "}
-          {item.subscription?.plan?.code ? (
-            item.subscription.plan.code.replace(/_/g, " ")
-          ) : (
-            <span className="text-muted-foreground">FREE</span>
-          )}{" "}
-        </span>
-      ),
+      accessor: (item) => {
+        const activeSubs = item.subscriptions || [];
+        if (activeSubs.length === 0) {
+          return <span className="text-muted-foreground">FREE</span>;
+        }
+
+        const intelligencePlans = ["PRO", "BUSINESS", "ENTERPRISE"];
+        const verificationPlans = [
+          "BASIC_VERIFIED",
+          "PREMIUM_VERIFIED",
+          "VERIFIED",
+        ];
+
+        const activeIntel = activeSubs
+          .filter((s) => intelligencePlans.includes(s.plan.code))
+          .slice(-1);
+        const activeVerif = activeSubs
+          .filter((s) => verificationPlans.includes(s.plan.code))
+          .slice(-1);
+
+        const displayedPlans = [...activeIntel, ...activeVerif];
+
+        return (
+          <div className="flex flex-col gap-0.5">
+            {displayedPlans.map((sub, i) => (
+              <span
+                key={i}
+                className="text-[10px] font-bold leading-none bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10 w-fit"
+              >
+                {sub.plan.code.replace(/_/g, " ")}
+              </span>
+            ))}
+            {activeIntel.length === 0 && (
+              <span className="text-[10px] font-bold leading-none bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10 w-fit">
+                FREE
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: "Payment",
       accessor: (item) => (
         <span className="text-sm font-bold">
-          {" "}
-          {item.subscription?.plan?.monthlyPrice ? (
-            `R${(item.subscription.plan.monthlyPrice / 100).toFixed(2)}`
+          {item.totalMonthlyPrice > 0 ? (
+            `R${(item.totalMonthlyPrice / 100).toFixed(2)}`
           ) : (
             <span className="text-muted-foreground italic">-</span>
-          )}{" "}
+          )}
         </span>
       ),
     },

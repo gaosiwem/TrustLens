@@ -192,4 +192,46 @@ export class OpenAIProvider implements AIProvider {
       return null;
     }
   }
+
+  async analyzeRootCause(
+    brandName: string,
+    topic: string,
+    complaintContext: string,
+  ): Promise<{ cause: string; impact: string; fix: string } | null> {
+    if (!client) return null;
+    try {
+      const prompt = `
+        Analyze this cluster of complaints for "${brandName}" regarding the topic "${topic}".
+        
+        CONTEXT:
+        ${complaintContext}
+        
+        GOAL:
+        1. Identify the likely systemic "Root Cause" of these issues.
+        2. Estimate the "Impact" on brand reputation (e.g., trust erosion, customer churn).
+        3. Recommend a permanent "Systemic Fix" to prevent recurrence.
+        
+        RESPONSE FORMAT (JSON):
+        {
+          "cause": "Concise description of the institutional or process failure",
+          "impact": "Brief explanation of the long-term risk",
+          "fix": "Specific operational or strategic recommendation"
+        }
+      `;
+
+      const res = await client.chat.completions.create({
+        model: AI_CONFIG.model,
+        messages: [{ role: "user", content: prompt.trim() }],
+        max_tokens: 500,
+        response_format: { type: "json_object" },
+      });
+
+      const content = res.choices[0]?.message.content;
+      if (!content) return null;
+      return JSON.parse(content);
+    } catch (err) {
+      console.error("[OpenAI] Root cause analysis failed:", err);
+      return null;
+    }
+  }
 }

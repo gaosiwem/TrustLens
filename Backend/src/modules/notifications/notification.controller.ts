@@ -40,7 +40,8 @@ async function checkBrandAccess(
 
 export async function getNotificationsController(req: Request, res: Response) {
   try {
-    const userId = req.user?.userId;
+    const user = (req as any).user;
+    const userId = user?.userId || user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -114,7 +115,8 @@ export async function markNotificationReadController(
 ) {
   try {
     const { id } = req.params;
-    const userId = req.user?.userId;
+    const user = (req as any).user;
+    const userId = user?.userId || user?.id;
 
     if (!id) {
       return res.status(400).json({ error: "Notification ID required" });
@@ -153,7 +155,8 @@ export async function markAllNotificationsReadController(
   res: Response,
 ) {
   try {
-    const userId = req.user?.userId;
+    const user = (req as any).user;
+    const userId = user?.userId || user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -198,7 +201,8 @@ export async function markAllNotificationsReadController(
 
 export async function getUnreadCountController(req: Request, res: Response) {
   try {
-    const userId = req.user?.userId;
+    const user = (req as any).user;
+    const userId = user?.userId || user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -243,7 +247,8 @@ export async function getUnreadCountController(req: Request, res: Response) {
 
 export async function getPreferencesController(req: Request, res: Response) {
   try {
-    const userId = req.user?.userId;
+    const user = (req as any).user;
+    const userId = user?.userId || user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -258,7 +263,8 @@ export async function getPreferencesController(req: Request, res: Response) {
 
 export async function updatePreferencesController(req: Request, res: Response) {
   try {
-    const userId = req.user?.userId;
+    const user = (req as any).user;
+    const userId = user?.userId || user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }

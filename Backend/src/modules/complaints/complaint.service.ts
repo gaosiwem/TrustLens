@@ -12,6 +12,7 @@ import {
 import { getSentimentQueue } from "../../queues/sentiment.queue.js";
 import { EmailTemplates } from "../../services/email/emailTemplates.js";
 import { EmailOutboxService } from "../../services/emailOutbox.service.js";
+import { calculateSLADeadline } from "./sla.helper.js";
 
 export async function createComplaint(input: {
   userId: string;
@@ -32,6 +33,9 @@ export async function createComplaint(input: {
     select: { name: true, email: true },
   });
 
+  // Calculate SLA Deadline
+  const slaDeadline = await calculateSLADeadline((brand as any).id);
+
   const complaint = await prisma.complaint.create({
     data: {
       userId: input.userId,
@@ -39,6 +43,8 @@ export async function createComplaint(input: {
       title: input.title,
       description: input.description,
       status: "SUBMITTED",
+      slaDeadline,
+      slaStatus: "ON_TRACK",
     },
   });
   logger.info("[ComplaintService] Complaint record created: %s", complaint.id);
@@ -60,6 +66,7 @@ export async function createComplaint(input: {
         htmlBody: inviteEmail.htmlBody,
         textBody: inviteEmail.textBody,
         brandId: "system",
+        attachments: inviteEmail.attachments,
       });
     } catch (err) {
       logger.error("Failed to send brand invitation:", err);

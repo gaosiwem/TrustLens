@@ -15,69 +15,92 @@ model User {
   role                   UserRole                @default(USER)
   createdAt              DateTime                @default(now())
   managedBrands          Brand[]                 @relation("BrandManager")
+  brandMemberships       BrandMember[]
   complaints             Complaint[]
   followups              Followup[]
   notifications          Notification[]
   notificationPreference NotificationPreference?
-  brandMemberships       BrandMember[]
   ratings                Rating[]
   verificationRequests   VerifiedRequest[]
   verifiedSubscriptions  VerifiedSubscription[]
+  assignedComplaints     Complaint[]             @relation("ComplaintAssignee")
+}
+
+enum WidgetPlan {
+  FREE
+  PRO
+  BUSINESS
+  ENTERPRISE
 }
 
 model Brand {
-  id           String           @id @default(uuid())
-  name         String           @unique
-  isVerified   Boolean          @default(false)
-  createdAt    DateTime         @default(now())
-  logoUrl      String?
-  managerId    String?
-  description  String?
-  searchTags   String[]         @default([])
-  supportEmail String?
-  supportPhone String?
-  websiteUrl   String?
-  manager      User?            @relation("BrandManager", fields: [managerId], references: [id])
-  complaints   Complaint[]
-  reputation   ReputationScore?
-  subscriptions BrandSubscription[]
-  billingProfile BrandBillingProfile?
-  invoices       Invoice[]
-  verificationRequests VerifiedRequest[]
+  id                   String                @id @default(uuid())
+  name                 String                @unique
+  isVerified           Boolean               @default(false)
+  createdAt            DateTime              @default(now())
+  logoUrl              String?
+  description          String?
+  managerId            String?
+  searchTags           String[]              @default([])
+  supportEmail         String?
+  supportPhone         String?
+  websiteUrl           String?
+  category             String?               @default("General")
+  manager              User?                 @relation("BrandManager", fields: [managerId], references: [id])
   alertPreference      BrandAlertPreference?
+  billingProfile       BrandBillingProfile?
   members              BrandMember[]
+  subscriptions        BrandSubscription[]
+  complaints           Complaint[]
+  invoices             Invoice[]
+  reputation           ReputationScore?
+  verificationRequests VerifiedRequest[]
+  slaConfig            BrandSLAConfig?
+  
+  slug                  String?     @unique // Made optional initially to avoid migration issues, but strictly should be required
+  widgetPlan            WidgetPlan  @default(FREE)
+  widgetWatermark       Boolean     @default(true)
+  widgetWatermarkText   String?     // Custom text for Propelled by ...
+  widgetRoutingEnabled  Boolean     @default(true)
+  allowedDomains        String[]    @default([])
+  defaultTheme          String      @default("light")
+  googlePlaceId         String?
+  googleReviewUrl       String?
+  locations             BrandLocation[]
+  widgetKeys            WidgetKey[]
+  dailyMetrics          BrandDailyMetrics[]
+  widgetStyles          Json?       // Stores custom styling (colors, fonts) for premium widgets
 }
 
 model BrandMember {
   id        String   @id @default(uuid())
   brandId   String
   userId    String
-  role      String   @default("ADMIN") // ADMIN, EDITOR, VIEWER
+  role      String   @default("ADMIN")
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  brand Brand @relation(fields: [brandId], references: [id])
-  user  User  @relation(fields: [userId], references: [id])
+  brand     Brand    @relation(fields: [brandId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([brandId, userId])
 }
 
 model BrandAlertPreference {
-  id                  String   @id @default(uuid())
-  brandId             String   @unique
-  emailEnabled        Boolean  @default(true)
-  inAppEnabled        Boolean  @default(true)
-  complaintCreated    Boolean  @default(true)
-  escalations         Boolean  @default(true)
-  newMessages         Boolean  @default(true)
-  statusChanges       Boolean  @default(false)
-  evidenceAdded       Boolean  @default(false)
-  dailyDigestEnabled  Boolean  @default(false)
-  digestTimeLocal     String? // "08:00"
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  brand               Brand    @relation(fields: [brandId], references: [id])
+  id                 String   @id @default(uuid())
+  brandId            String   @unique
+  emailEnabled       Boolean  @default(true)
+  inAppEnabled       Boolean  @default(true)
+  complaintCreated   Boolean  @default(true)
+  escalations        Boolean  @default(true)
+  newMessages        Boolean  @default(true)
+  statusChanges      Boolean  @default(false)
+  evidenceAdded      Boolean  @default(false)
+  dailyDigestEnabled Boolean  @default(false)
+  digestTimeLocal    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  brand              Brand    @relation(fields: [brandId], references: [id])
 }
 
 model EmailOutbox {
@@ -87,7 +110,7 @@ model EmailOutbox {
   subject   String
   htmlBody  String
   textBody  String?
-  status    String    @default("PENDING") // PENDING | SENT | FAILED
+  status    String    @default("PENDING")
   attempts  Int       @default(0)
   lastError String?
   createdAt DateTime  @default(now())
@@ -96,42 +119,27 @@ model EmailOutbox {
   @@index([brandId])
 }
 
-enum NotificationType {
-  COMPLAINT_CREATED
-  COMPLAINT_ESCALATED
-  NEW_CONSUMER_MESSAGE
-  STATUS_CHANGED
-  EVIDENCE_ADDED
-  SYSTEM_ALERT
-}
-
-enum DeliveryChannel {
-  IN_APP
-  EMAIL
-}
-
 model SubscriptionPlan {
-  id           String              @id @default(uuid())
-  code         String              @unique
-  name         String
-  monthlyPrice Int
-  features     Json
-  createdAt    DateTime            @default(now())
+  id            String              @id @default(uuid())
+  code          String              @unique
+  name          String
+  monthlyPrice  Int
+  features      Json
+  createdAt     DateTime            @default(now())
   subscriptions BrandSubscription[]
 }
 
 model BrandSubscription {
-  id         String             @id @default(uuid())
-  brandId    String
-  planId     String
-  status     SubscriptionStatus
-  startedAt  DateTime
-  endsAt     DateTime?
-  gatewayRef String?
-  createdAt  DateTime           @default(now())
-
-  brand Brand            @relation(fields: [brandId], references: [id])
-  plan  SubscriptionPlan @relation(fields: [planId], references: [id])
+  id           String               @id @default(uuid())
+  brandId      String
+  planId       String
+  status       SubscriptionStatus
+  startedAt    DateTime
+  endsAt       DateTime?
+  gatewayRef   String?
+  createdAt    DateTime             @default(now())
+  brand        Brand                @relation(fields: [brandId], references: [id])
+  plan         SubscriptionPlan     @relation(fields: [planId], references: [id])
   transactions PaymentTransaction[]
 
   @@unique([brandId, planId])
@@ -148,13 +156,6 @@ model PaymentTransaction {
   status         String
   createdAt      DateTime          @default(now())
   subscription   BrandSubscription @relation(fields: [subscriptionId], references: [id])
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  PAST_DUE
-  CANCELLED
-  EXPIRED
 }
 
 model BrandBillingProfile {
@@ -185,49 +186,35 @@ model Invoice {
   currency       String        @default("ZAR")
   status         InvoiceStatus
   issuedAt       DateTime
-  dueDate        DateTime?
   paidAt         DateTime?
+  dueDate        DateTime?
   brand          Brand         @relation(fields: [brandId], references: [id])
   items          InvoiceItem[]
 }
-  
+
 model InvoiceItem {
   id          String  @id @default(uuid())
   invoiceId   String
   description String
   quantity    Int     @default(1)
-  unitPrice   Int     // In cents
-  amount      Int     // quantity * unitPrice
-  
+  unitPrice   Int
+  amount      Int
   invoice     Invoice @relation(fields: [invoiceId], references: [id])
 }
 
-enum InvoiceStatus {
-  ISSUED
-  PAID
-  VOID
-}
-
 model VerifiedRequest {
-  id            String             @id @default(uuid())
-  brandId       String
-  userId        String
-  companyName   String
-  documents     Json               // List of files/metadata
-  status        VerificationStatus @default(PENDING)
-  adminComments String?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-
+  id                   String                 @id @default(uuid())
+  brandId              String
+  userId               String
+  companyName          String
+  documents            Json
+  status               VerificationStatus     @default(PENDING)
+  adminComments        String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
   brand                Brand                  @relation(fields: [brandId], references: [id])
   user                 User                   @relation(fields: [userId], references: [id])
   verifiedSubscription VerifiedSubscription[]
-}
-
-enum VerificationStatus {
-  PENDING
-  APPROVED
-  REJECTED
 }
 
 model VerifiedSubscription {
@@ -243,16 +230,8 @@ model VerifiedSubscription {
   endDate           DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
-
-  user            User            @relation(fields: [userId], references: [id])
-  verifiedRequest VerifiedRequest @relation(fields: [verifiedRequestId], references: [id])
-}
-
-enum VerifiedSubStatus {
-  PENDING
-  ACTIVE
-  EXPIRED
-  CANCELLED
+  user              User              @relation(fields: [userId], references: [id])
+  verifiedRequest   VerifiedRequest   @relation(fields: [verifiedRequestId], references: [id])
 }
 
 model VerificationAuditLog {
@@ -287,13 +266,18 @@ model Complaint {
   verifiedTier   Int                      @default(3)
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
+  lastRemindedAt DateTime?
   attachments    Attachment[]
   brand          Brand                    @relation(fields: [brandId], references: [id])
   user           User                     @relation(fields: [userId], references: [id])
   statusHistory  ComplaintStatusHistory[]
+  escalationCase EscalationCase?
   followups      Followup[]
   ratings        Rating[]
-  escalationCase EscalationCase?
+  assignedToId   String?
+  assignedTo     User?                    @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
+  slaDeadline    DateTime?
+  slaStatus      SLAStatus                @default(ON_TRACK)
 }
 
 model ReputationScore {
@@ -367,20 +351,19 @@ model Rating {
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  userId    String?  // targeted recipient (consumer or specific brand member)
-  brandId   String?  // brand context for brand notifications
-  type      String   // Can be NotificationType enum values as strings
-  title     String
+  id        String    @id @default(uuid())
+  userId    String?
+  type      String
+  read      Boolean   @default(false)
+  priority  String    @default("info")
+  createdAt DateTime  @default(now())
   body      String
+  brandId   String?
   link      String?
   metadata  Json?
-  read      Boolean  @default(false)
-  priority  String   @default("info")
-  createdAt DateTime @default(now())
   readAt    DateTime?
-
-  user      User?    @relation(fields: [userId], references: [id])
+  title     String
+  user      User?     @relation(fields: [userId], references: [id])
 
   @@index([userId, read, createdAt])
   @@index([brandId, read, createdAt])
@@ -395,13 +378,13 @@ model NotificationPreference {
 }
 
 model Followup {
-  id          String    @id @default(uuid())
-  complaintId String
-  userId      String
-  comment     String
-  createdAt   DateTime  @default(now())
-  complaint   Complaint @relation(fields: [complaintId], references: [id])
-  user        User      @relation(fields: [userId], references: [id])
+  id                String                      @id @default(uuid())
+  complaintId       String
+  userId            String
+  comment           String
+  createdAt         DateTime                    @default(now())
+  complaint         Complaint                   @relation(fields: [complaintId], references: [id])
+  user              User                        @relation(fields: [userId], references: [id])
   authenticityScore ResponderAuthenticityScore?
 }
 
@@ -418,15 +401,166 @@ model BrandClaim {
   websiteUrl String?
 }
 
+model ResponderAuthenticityScore {
+  id              String   @id @default(uuid())
+  responseId      String   @unique
+  businessUserId  String
+  identityScore   Float
+  behaviorScore   Float
+  languageScore   Float
+  reputationScore Float
+  compositeScore  Float
+  riskBand        String
+  ruleBreakdown   Json
+  createdAt       DateTime @default(now())
+  response        Followup @relation(fields: [responseId], references: [id])
+}
+
+model TrustScore {
+  id          String   @id @default(uuid())
+  entityType  String
+  entityId    String
+  score       Int
+  riskLevel   String
+  metadata    Json?
+  evaluatedAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model EnforcementAction {
+  id          String    @id @default(uuid())
+  entityType  String
+  entityId    String
+  actionType  String
+  reason      String
+  triggeredBy String
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+}
+
+model EscalationCase {
+  id            String    @id @default(uuid())
+  complaintId   String    @unique
+  escalatedBy   String
+  reason        String
+  aiRiskSummary String?
+  status        String
+  createdAt     DateTime  @default(now())
+  complaint     Complaint @relation(fields: [complaintId], references: [id])
+}
+
+model SentimentEvent {
+  id                String              @id @default(uuid())
+  brandId           String
+  complaintId       String?
+  sourceType        SentimentSourceType
+  sourceId          String?
+  textHash          String
+  language          String?
+  label             SentimentLabel
+  score             Float
+  intensity         Float
+  urgency           Int
+  topics            String[]
+  keyPhrases        String[]
+  model             String
+  provider          String              @default("openai")
+  moderationFlagged Boolean             @default(false)
+  moderationRaw     Json?
+  raw               Json?
+  createdAt         DateTime            @default(now())
+  stars             Int?
+
+  @@index([brandId])
+  @@index([complaintId])
+  @@index([sourceId])
+  @@index([textHash])
+  @@index([brandId, createdAt])
+}
+
+model BrandSentimentDaily {
+  id          String   @id @default(uuid())
+  brandId     String
+  day         DateTime
+  count       Int
+  avgScore    Float
+  avgUrgency  Float
+  positivePct Float
+  negativePct Float
+  neutralPct  Float
+  topTopics   String[]
+  updatedAt   DateTime @updatedAt
+  avgStars    Float?
+
+  @@unique([brandId, day])
+  @@index([brandId])
+  @@index([day])
+}
+
+model ComplaintSentimentSnapshot {
+  id             String         @id @default(uuid())
+  complaintId    String         @unique
+  brandId        String
+  lastEventAt    DateTime
+  currentLabel   SentimentLabel
+  currentScore   Float
+  currentUrgency Int
+  topics         String[]
+  updatedAt      DateTime       @updatedAt
+
+  @@index([brandId])
+}
+
+enum NotificationType {
+  COMPLAINT_CREATED
+  COMPLAINT_ESCALATED
+  NEW_CONSUMER_MESSAGE
+  STATUS_CHANGED
+  EVIDENCE_ADDED
+  SYSTEM_ALERT
+}
+
+enum DeliveryChannel {
+  IN_APP
+  EMAIL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  ISSUED
+  PAID
+  VOID
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum VerifiedSubStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
 enum ComplaintStatus {
   DRAFT
   SUBMITTED
   UNDER_REVIEW
   NEEDS_INFO
-  INFO_PROVIDED
   RESPONDED
   RESOLVED
   REJECTED
+  INFO_PROVIDED
 }
 
 enum UserRole {
@@ -446,57 +580,6 @@ enum BrandClaimStatus {
   INFO_REQUESTED
 }
 
-model ResponderAuthenticityScore {
-  id              String   @id @default(uuid())
-  responseId      String   @unique
-  businessUserId  String
-  identityScore   Float
-  behaviorScore   Float
-  languageScore   Float
-  reputationScore Float
-  compositeScore  Float
-  riskBand        String   // LOW | MEDIUM | HIGH
-  ruleBreakdown   Json
-  createdAt       DateTime @default(now())
-  
-  response        Followup @relation(fields: [responseId], references: [id])
-}
-
-model TrustScore {
-  id         String   @id @default(uuid())
-  entityType String   // "USER" | "BRAND"
-  entityId   String
-  score      Int      // 0-100
-  riskLevel  String   // LOW | MEDIUM | HIGH | CRITICAL
-  metadata   Json?    // Stores breakdown factors: { authenticity, activity, verification }
-  evaluatedAt DateTime @default(now())
-
-  @@index([entityType, entityId])
-}
-
-model EnforcementAction {
-  id          String   @id @default(uuid())
-  entityType  String
-  entityId    String
-  actionType  String   // WARNING, RATE_LIMIT, REVIEW_REQUIRED, TEMP_RESTRICTION
-  reason      String
-  triggeredBy String   // AI_RULE_ID or ADMIN
-  createdAt   DateTime @default(now())
-  resolvedAt  DateTime?
-}
-
-model EscalationCase {
-  id            String   @id @default(uuid())
-  complaintId   String   @unique
-  escalatedBy   String   // USER | SYSTEM | ADMIN
-  reason        String
-  aiRiskSummary String?
-  status        String   // PENDING | INVESTIGATING | RESOLVED | REFERRED
-  createdAt     DateTime @default(now())
-  
-  complaint     Complaint @relation(fields: [complaintId], references: [id])
-}
-
 enum SentimentLabel {
   VERY_NEGATIVE
   NEGATIVE
@@ -513,67 +596,67 @@ enum SentimentSourceType {
   RATING
 }
 
-model SentimentEvent {
-  id                String              @id @default(uuid())
-  brandId           String
-  complaintId       String?
-  sourceType        SentimentSourceType
-  sourceId          String?             // messageId, responseId, etc
-  textHash          String
-  language          String?             // "en", "af", etc
-  stars             Int?                // for RATING source
-  label             SentimentLabel
-  score             Float               // -1.0 to +1.0
-  intensity         Float               // 0.0 to 1.0
-  urgency           Int                 // 0 to 100
-  topics            String[]            // ["billing","delivery"]
-  keyPhrases        String[]            // short phrases
-
-  model             String
-  provider          String              @default("openai")
-  moderationFlagged Boolean             @default(false)
-  moderationRaw     Json?
-  raw               Json?               // full structured output + reasoning metadata
-  createdAt         DateTime            @default(now())
-
-  @@index([brandId])
-  @@index([complaintId])
-  @@index([sourceId])
-  @@index([textHash])
-  @@index([brandId, createdAt])
+model BrandSLAConfig {
+  id             String   @id @default(uuid())
+  brandId        String   @unique
+  lowPriorityHours  Int   @default(48)
+  mediumPriorityHours Int @default(24)
+  highPriorityHours Int   @default(4)
+  criticalPriorityHours Int @default(1)
+  updatedAt      DateTime @updatedAt
+  brand          Brand    @relation(fields: [brandId], references: [id])
 }
 
-model BrandSentimentDaily {
-  id          String   @id @default(uuid())
+enum SLAStatus {
+  ON_TRACK
+  AT_RISK
+  BREACHED
+}
+
+model BrandLocation {
+  id            String   @id @default(cuid())
+  brandId       String
+  brand         Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name          String
+  slug          String
+  googlePlaceId String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  metrics       BrandDailyMetrics[]
+
+  @@unique([brandId, slug])
+}
+
+model WidgetKey {
+  id          String   @id @default(cuid())
   brandId     String
-  day         DateTime // store midnight UTC
-  count       Int
-  avgScore    Float
-  avgUrgency  Float
-  avgStars    Float?
-  positivePct Float
-  negativePct Float
-  neutralPct  Float
-  topTopics   String[]
-  updatedAt   DateTime @updatedAt
-
-  @@index([brandId])
-  @@index([day])
-  @@unique([brandId, day])
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  key         String   @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  lastUsedAt  DateTime?
 }
 
-model ComplaintSentimentSnapshot {
-  id             String         @id @default(uuid())
-  complaintId    String         @unique
-  brandId        String
-  lastEventAt    DateTime
-  currentLabel   SentimentLabel
-  currentScore   Float
-  currentUrgency Int
-  topics         String[]
-  updatedAt      DateTime       @updatedAt
+model BrandDailyMetrics {
+  id                         String   @id @default(cuid())
+  brandId                    String
+  brand                      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  locationId                 String?
+  location                   BrandLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  date                       DateTime
+  complaintsOpened           Int      @default(0)
+  complaintsResolved         Int      @default(0)
+  responseRatePct            Float    @default(0)
+  medianFirstResponseMinutes Int      @default(0)
+  medianResolutionMinutes    Int      @default(0)
+  trustScore                 Int      @default(0)
+  sentimentAvg               Float    @default(0)
+  sentimentDelta30d          Float    @default(0)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
-  @@index([brandId])
+  @@index([brandId, date])
+  @@index([brandId, locationId, date])
+  @@unique([brandId, locationId, date])
 }
-
-

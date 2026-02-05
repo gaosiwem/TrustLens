@@ -36,6 +36,7 @@ async function main() {
       subject: welcomeEmail.subject,
       html: welcomeEmail.htmlBody,
       text: welcomeEmail.textBody,
+      attachments: welcomeEmail.attachments,
     });
     console.log("Welcome Email sent!");
     await wait(DELAY);
@@ -50,6 +51,7 @@ async function main() {
       subject: resetEmail.subject,
       html: resetEmail.htmlBody,
       text: resetEmail.textBody,
+      attachments: resetEmail.attachments,
     });
     console.log("Password Reset Email sent!");
     await wait(DELAY);
@@ -67,6 +69,7 @@ async function main() {
       subject: urgentEmail.subject,
       html: urgentEmail.htmlBody,
       text: urgentEmail.textBody,
+      attachments: urgentEmail.attachments,
     });
     console.log("Urgent Notification sent!");
     await wait(DELAY);
@@ -84,6 +87,7 @@ async function main() {
       subject: successEmail.subject,
       html: successEmail.htmlBody,
       text: successEmail.textBody,
+      attachments: successEmail.attachments,
     });
     console.log("Resolved Notification sent!");
     await wait(DELAY);
@@ -101,6 +105,7 @@ async function main() {
       subject: standardEmail.subject,
       html: standardEmail.htmlBody,
       text: standardEmail.textBody,
+      attachments: standardEmail.attachments,
     });
     console.log("Standard Notification sent!");
     await wait(DELAY);
@@ -118,6 +123,7 @@ async function main() {
       subject: followUpEmail.subject,
       html: followUpEmail.htmlBody,
       text: followUpEmail.textBody,
+      attachments: followUpEmail.attachments,
     });
     console.log("Brand Follow-up Notification sent!");
     await wait(DELAY);
@@ -138,6 +144,7 @@ async function main() {
       subject: resolvedEmail.subject,
       html: resolvedEmail.htmlBody,
       text: resolvedEmail.textBody,
+      attachments: resolvedEmail.attachments,
     });
     console.log("Resolved Notification sent!");
     await wait(DELAY);
@@ -155,6 +162,7 @@ async function main() {
       subject: claimCreatedEmail.subject,
       html: claimCreatedEmail.htmlBody,
       text: claimCreatedEmail.textBody,
+      attachments: claimCreatedEmail.attachments,
     });
     console.log("Brand Claim Created Notification sent!");
     await wait(DELAY);
@@ -172,6 +180,7 @@ async function main() {
       subject: claimApprovedEmail.subject,
       html: claimApprovedEmail.htmlBody,
       text: claimApprovedEmail.textBody,
+      attachments: claimApprovedEmail.attachments,
     });
     console.log("Brand Claim Approved Notification sent!");
     await wait(DELAY);
@@ -187,6 +196,7 @@ async function main() {
       subject: invitationEmail.subject,
       html: invitationEmail.htmlBody,
       text: invitationEmail.textBody,
+      attachments: invitationEmail.attachments,
     });
     console.log("Brand Invitation Email sent!");
 
@@ -204,6 +214,7 @@ async function main() {
       subject: receiptEmail.subject,
       html: receiptEmail.htmlBody,
       text: receiptEmail.textBody,
+      attachments: receiptEmail.attachments,
     });
     console.log("Payment Receipt Email sent!");
 

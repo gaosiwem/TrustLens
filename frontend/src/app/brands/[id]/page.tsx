@@ -40,6 +40,11 @@ interface BrandProfile {
     limit: number;
     totalPages: number;
   };
+  widgetStyles?: {
+    primaryColor?: string;
+    starColor?: string;
+    fontFamily?: string;
+  };
 }
 
 export default function BrandProfilePage() {
@@ -166,7 +171,7 @@ export default function BrandProfilePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
-              <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-[2rem] bg-background border-muted overflow-hidden flex items-center justify-center shadow-lg">
+              <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-4xl bg-background border-muted overflow-hidden flex items-center justify-center shadow-lg">
                 {profile?.logoUrl ? (
                   <img
                     src={getAssetUrl(profile.logoUrl)}
@@ -202,6 +207,7 @@ export default function BrandProfilePage() {
                           max={5}
                           initialRating={profile?.stats.averageRating || 0}
                           readOnly={true}
+                          color={profile?.widgetStyles?.starColor}
                         />
                         <span className="text-2xl font-black text-primary">
                           {profile?.stats.averageRating.toFixed(1)}
@@ -524,6 +530,7 @@ export default function BrandProfilePage() {
                       verifiedUntil={profile?.subscription?.verifiedUntil}
                       stars={ownerRating?.stars}
                       latestReply={brandReply?.comment}
+                      starColor={profile?.widgetStyles?.starColor}
                     />
                   );
                 })}

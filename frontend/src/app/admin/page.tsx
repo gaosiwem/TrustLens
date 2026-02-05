@@ -37,10 +37,11 @@ export default function AdminDashboardPage() {
         <div className="flex justify-between items-center max-w-7xl mx-auto">
           <div className="flex items-center gap-8">
             <div>
-              <Link href="/">
-                <h1 className="text-2xl font-bold tracking-tight cursor-pointer hover:text-primary transition-colors">
-                  TrustLens Admin
-                </h1>
+              <Link href="/" className="flex items-center gap-3">
+                <img src="/logo.png" alt="TrustLens" className="h-10 w-auto" />
+                <span className="text-xl font-bold tracking-tight text-foreground">
+                  Admin
+                </span>
               </Link>
               <p className="text-sm text-muted-foreground mt-1">
                 Operational intelligence & platform control
@@ -61,7 +62,7 @@ export default function AdminDashboardPage() {
             <DarkModeToggle />
             <div className="h-8 w-px bg-border mx-2" />
             <button
-              onClick={() => signOut({ callbackUrl: "/auth/login" })}
+              onClick={() => signOut({ callbackUrl: "/" })}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 transition-all text-sm font-bold"
             >
               <span className="material-symbols-outlined text-lg">logout</span>

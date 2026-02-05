@@ -16,4 +16,9 @@ export interface AIProvider {
     userName?: string,
     userEmail?: string,
   ): Promise<string | null>;
+  analyzeRootCause(
+    brandName: string,
+    topic: string,
+    complaintContext: string,
+  ): Promise<{ cause: string; impact: string; fix: string } | null>;
 }

@@ -67,6 +67,20 @@ export async function resolveBrand(
   return brand;
 }
 
+export async function getBrandById(id: string) {
+  return prisma.brand.findUnique({
+    where: { id },
+    include: {
+      widgetKeys: true,
+      locations: true,
+      subscriptions: {
+        where: { status: "ACTIVE" },
+        include: { plan: true },
+      },
+    },
+  });
+}
+
 export async function createBrand(
   name: string,
   isVerified: boolean = false,
@@ -106,6 +120,7 @@ export async function getBrands(
       orderBy: { [sortBy]: sortOrder },
       include: {
         subscriptions: {
+          where: { status: "ACTIVE" },
           include: {
             plan: true,
           },
@@ -115,7 +130,17 @@ export async function getBrands(
     prisma.brand.count({ where }),
   ]);
 
-  return { items, total };
+  return {
+    items: items.map((brand: any) => ({
+      ...brand,
+      subscriptions: brand.subscriptions || [],
+      totalMonthlyPrice: (brand.subscriptions || []).reduce(
+        (acc: number, sub: any) => acc + (sub.plan?.monthlyPrice || 0),
+        0,
+      ),
+    })),
+    total,
+  };
 }
 
 export async function searchBrandsWithRatings(query: string) {
@@ -389,56 +414,104 @@ export async function processBrandClaim(
   claimId: string,
   status: "APPROVED" | "REJECTED" | "INFO_REQUESTED",
 ) {
+  logger.info(`Processing brand claim ${claimId} with status ${status}`);
+
   const claim = await prisma.brandClaim.findUnique({
     where: { id: claimId },
   });
 
-  if (!claim) throw new Error("Brand claim not found");
+  if (!claim) {
+    logger.error(`Brand claim ${claimId} not found`);
+    throw new Error("Brand claim not found");
+  }
 
-  const updatedClaim = await prisma.brandClaim.update({
-    where: { id: claimId },
-    data: { status },
-  });
+  // Use a transaction for non-idempotent approval logic
+  return await prisma.$transaction(async (tx) => {
+    const updatedClaim = await tx.brandClaim.update({
+      where: { id: claimId },
+      data: { status },
+    });
 
-  if (status === "APPROVED") {
-    // When a claim is approved:
-    // 1. Ensure the brand exists, is verified, and linked to the user
-    let domainHint: string | undefined = undefined;
+    if (status === "APPROVED") {
+      logger.info(
+        `Claim approved for brand "${claim.brandName}" by user ${claim.userId}`,
+      );
 
-    if ((claim as any).websiteUrl) {
-      try {
-        const url = new URL(
-          (claim as any).websiteUrl.startsWith("http")
-            ? (claim as any).websiteUrl
-            : `https://${(claim as any).websiteUrl}`,
-        );
-        domainHint = url.hostname.replace(/^www\./, "");
-      } catch (e) {
-        domainHint = (claim as any).websiteUrl;
+      let domainHint: string | undefined = undefined;
+
+      if ((claim as any).websiteUrl) {
+        try {
+          const urlStr = (claim as any).websiteUrl.trim();
+          const url = new URL(
+            urlStr.startsWith("http") ? urlStr : `https://${urlStr}`,
+          );
+          domainHint = url.hostname.replace(/^www\./, "");
+        } catch (e) {
+          domainHint = (claim as any).websiteUrl;
+        }
+      } else {
+        const emailDomain = claim.email.split("@")[1]?.toLowerCase();
+        // Only hint if it's NOT a personal domain
+        try {
+          const { personalDomains } =
+            await import("../../utils/email.utils.js");
+          if (emailDomain && !personalDomains.includes(emailDomain)) {
+            domainHint = emailDomain;
+          }
+        } catch (err) {
+          logger.warn("Could not import email utils during claim processing");
+        }
       }
-    } else {
-      const emailDomain = claim.email.split("@")[1]?.toLowerCase();
-      // Only hint if it's NOT a personal domain
-      const { personalDomains } = await import("../../utils/email.utils.js");
-      if (emailDomain && !personalDomains.includes(emailDomain)) {
-        domainHint = emailDomain;
+
+      try {
+        // Resolve or create the brand
+        const normalized = claim.brandName.trim();
+        let brand = await tx.brand.findFirst({
+          where: { name: { equals: normalized, mode: "insensitive" } },
+        });
+
+        if (!brand) {
+          logger.info(`Creating new brand "${normalized}" for claim`);
+          brand = await (tx.brand.create({
+            data: {
+              name: normalized,
+              isVerified: true,
+              managerId: claim.userId,
+            } as any,
+          }) as any);
+        } else {
+          logger.info(`Updating existing brand "${brand.name}" for claim`);
+          brand = await (tx.brand.update({
+            where: { id: brand.id },
+            data: {
+              isVerified: true,
+              managerId: claim.userId,
+            } as any,
+          }) as any);
+        }
+
+        // Promote user to BRAND role IF they are currently a regular USER
+        // (Don't demote ADMINs or MODERATORS)
+        const user = await tx.user.findUnique({
+          where: { id: claim.userId },
+          select: { role: true },
+        });
+
+        if (user && user.role === "USER") {
+          logger.info(`Promoting user ${claim.userId} to BRAND role`);
+          await tx.user.update({
+            where: { id: claim.userId },
+            data: { role: "BRAND" as any },
+          });
+        }
+      } catch (err: any) {
+        logger.error(`Failed to satisfy approved claim: ${err.message}`, {
+          stack: err.stack,
+        });
+        throw new Error(`Failed to satisfy approved claim: ${err.message}`);
       }
     }
 
-    await resolveBrand(
-      claim.brandName,
-      true,
-      undefined,
-      claim.userId,
-      domainHint,
-    );
-
-    // 2. Promote user to BRAND role
-    await prisma.user.update({
-      where: { id: claim.userId },
-      data: { role: "BRAND" as any },
-    });
-  }
-
-  return updatedClaim;
+    return updatedClaim;
+  });
 }

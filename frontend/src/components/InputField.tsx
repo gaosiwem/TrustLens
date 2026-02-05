@@ -1,26 +1,30 @@
 import { forwardRef, InputHTMLAttributes } from "react";
 import classNames from "classnames";
 
-interface InputFieldProps
-  extends React.InputHTMLAttributes<HTMLInputElement | HTMLTextAreaElement> {
+interface InputFieldProps extends React.InputHTMLAttributes<
+  HTMLInputElement | HTMLTextAreaElement
+> {
   label?: string;
   icon?: React.ReactNode;
   error?: string;
   multiline?: boolean;
   rows?: number;
+  wrapperClassName?: string;
 }
 
 const InputField = forwardRef<
   HTMLInputElement | HTMLTextAreaElement,
   InputFieldProps
->(({ label, icon, error, id, multiline, ...props }, ref) => {
+>(({ label, icon, error, id, multiline, wrapperClassName, ...props }, ref) => {
   const inputId =
     id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
 
   const Component = multiline ? "textarea" : "input";
 
   return (
-    <div className="flex flex-col gap-1.5 flex-1 w-full">
+    <div
+      className={classNames("flex flex-col gap-1.5 w-full", wrapperClassName)}
+    >
       {label && (
         <label
           htmlFor={inputId}
@@ -43,7 +47,7 @@ const InputField = forwardRef<
             "input-base w-full",
             multiline ? "py-4 min-h-[120px] h-auto" : "h-12",
             icon ? "pl-12 pr-4" : "px-4",
-            props.className
+            props.className,
           )}
         />
       </div>
