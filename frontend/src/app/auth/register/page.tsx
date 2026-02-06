@@ -66,8 +66,7 @@ function RegisterForm() {
     } catch (error: any) {
       console.error("Registration failed:", error);
       toast.error(
-        "Registration failed: " +
-          (error.response?.data?.error || error.message),
+        "Registration failed. Please check your information and try again.",
       );
     } finally {
       setLoading(false);

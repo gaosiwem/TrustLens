@@ -185,7 +185,7 @@ export default function BrandAutocomplete({
                       )} */}
                     </div>
                     <p className="text-[10px] text-muted-foreground font-bold mt-0.5">
-                      {brand.complaintCount || 0} Reports • AI Monitored
+                      {brand.complaintCount || 0} Reports
                     </p>
                   </div>
                   <div className="h-8 w-8 rounded-full border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-background">

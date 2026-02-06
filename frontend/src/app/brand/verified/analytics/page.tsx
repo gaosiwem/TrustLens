@@ -40,7 +40,7 @@ export default function VerificationAnalyticsPage() {
     } catch (error: any) {
       console.error("Failed to load analytics", error);
       setError(error.message || "Failed to load impact analytics");
-      toast.error(error.message || "Failed to load impact analytics");
+      toast.error("Something went wrong. Please try again later.");
     } finally {
       setLoading(false);
     }

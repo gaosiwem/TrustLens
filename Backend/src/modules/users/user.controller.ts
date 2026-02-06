@@ -12,7 +12,7 @@ export async function adminUpdateUserController(req: Request, res: Response) {
     const { name, role } = req.body;
     if (!id) return res.status(400).json({ error: "Missing user ID" });
 
-    const user = await adminUpdateUser(id, { name, role });
+    const user = await adminUpdateUser(id as string, { name, role });
     res.json(user);
   } catch (error) {
     console.error("Admin update user error:", error);
@@ -44,7 +44,7 @@ export async function getUsersController(req: Request, res: Response) {
 
 export async function getUserProfileController(req: Request, res: Response) {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as any).user.userId || (req as any).user.id;
     const user = await getUserProfile(userId);
     if (!user) return res.status(404).json({ error: "User not found" });
     res.json(user);
@@ -55,7 +55,7 @@ export async function getUserProfileController(req: Request, res: Response) {
 
 export async function updateUserProfileController(req: Request, res: Response) {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as any).user.userId || (req as any).user.id;
     const { name } = req.body;
     const user = await updateUserProfile(userId, { name });
     res.json(user);

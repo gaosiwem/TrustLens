@@ -38,7 +38,7 @@ function ResetPasswordForm() {
 
   const onSubmit = async (data: ResetPasswordData) => {
     if (!token) {
-      toast.error("Missing reset token");
+      toast.error("Invalid or expired reset link. Please request a new one.");
       return;
     }
 
@@ -59,11 +59,11 @@ function ResetPasswordForm() {
         toast.success("Password reset successfully! Redirecting...");
         setTimeout(() => router.push("/auth/login"), 2000);
       } else {
-        toast.error(result.error || "Failed to reset password");
+        toast.error("Failed to reset password. Please try again.");
       }
     } catch (error) {
       console.error(error);
-      toast.error("Network error. Please try again.");
+      toast.error("An error occurred. Please try again later.");
     } finally {
       setLoading(false);
     }

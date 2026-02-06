@@ -109,10 +109,10 @@ export default function BrandSidebar() {
                 const intelligencePlans = ["PRO", "BUSINESS", "ENTERPRISE"];
                 const verificationPlans = ["VERIFIED"];
 
-                const activeIntelligence = activePlans
+                const activeIntelligence = (activePlans || [])
                   .filter((p) => intelligencePlans.includes(p))
                   .slice(-1);
-                const activeVerification = activePlans
+                const activeVerification = (activePlans || [])
                   .filter((p) => verificationPlans.includes(p))
                   .slice(-1);
 

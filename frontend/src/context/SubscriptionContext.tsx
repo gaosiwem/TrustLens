@@ -62,20 +62,26 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/subscriptions/current`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const res = await fetch(`${apiUrl}/subscriptions/current`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       if (res.ok) {
-        const data = await res.json();
-        setPlan(data.plan || "FREE");
-        setActivePlans(data.activePlans || []);
-        setFeatures(data.features || {});
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setPlan(data.plan || "FREE");
+          setActivePlans(data.activePlans || []);
+          setFeatures(data.features || {});
+        } else {
+          console.warn(
+            "[SubscriptionContext] Expected JSON response but received",
+            contentType,
+          );
+        }
       }
     } catch (error) {
       console.error("Error fetching subscription:", error);

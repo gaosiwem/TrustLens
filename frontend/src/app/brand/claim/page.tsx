@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import BrandClaimForm from "../../../components/BrandClaimForm";
 import Link from "next/link";
@@ -27,12 +27,14 @@ function Badge({ children, variant, className }: any) {
 }
 
 export default function BrandClaimPage() {
+  const [validating, setValidating] = useState(false);
   const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
     const checkStatus = async () => {
       if (status === "authenticated") {
+        setValidating(true);
         try {
           const apiUrl =
             process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
@@ -43,22 +45,27 @@ export default function BrandClaimPage() {
             const data = await res.json();
             if (data.managedBrands && data.managedBrands.length > 0) {
               router.replace("/brand/dashboard");
+              return; // Stay in validating state while redirecting
             }
           }
         } catch (error) {
           console.error("Error checking brand status:", error);
+        } finally {
+          setValidating(false);
         }
       }
     };
     checkStatus();
   }, [session, status, router]);
 
-  if (status === "loading") {
+  if (status === "loading" || validating) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background text-center">
         <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-4"></div>
         <p className="text-sm font-bold tracking-widest text-muted-foreground uppercase animate-pulse">
-          Verifying Identity...
+          {status === "loading"
+            ? "Verifying Identity..."
+            : "Checking Brand Status..."}
         </p>
       </div>
     );

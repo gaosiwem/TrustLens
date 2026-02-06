@@ -7,7 +7,7 @@ interface RatingStarsProps {
   onChange?: (value: number) => void;
   readOnly?: boolean;
   color?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
 }
 
 export default function RatingStars({
@@ -28,7 +28,7 @@ export default function RatingStars({
   };
 
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-1 items-center">
       {[...Array(max)].map((_, i) => {
         const starValue = i + 1;
         const isFilled = starValue <= (hover || rating);
@@ -42,11 +42,13 @@ export default function RatingStars({
             onMouseLeave={() => !readOnly && setHover(0)}
             disabled={readOnly}
             className={`${
-              size === "sm"
-                ? "text-lg"
-                : size === "lg"
-                  ? "text-3xl"
-                  : "text-2xl"
+              size === "xs"
+                ? "text-[10px]"
+                : size === "sm"
+                  ? "text-base"
+                  : size === "lg"
+                    ? "text-2xl"
+                    : "text-xl"
             } transition-colors ${
               readOnly ? "cursor-default" : "cursor-pointer hover:scale-110"
             }`}

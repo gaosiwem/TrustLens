@@ -1,15 +1,28 @@
 "use client";
 
 import { differenceInHours, differenceInMinutes } from "date-fns";
-import { Clock, AlertTriangle, CheckCircle } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SLATimerProps {
   deadline: string | null;
   status: "ON_TRACK" | "AT_RISK" | "BREACHED";
+  restricted?: boolean;
 }
 
-export function SLATimer({ deadline, status }: SLATimerProps) {
+export function SLATimer({ deadline, status, restricted }: SLATimerProps) {
+  if (restricted) {
+    return (
+      <div
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed text-xs font-medium w-fit text-muted-foreground bg-muted/50 cursor-not-allowed"
+        title="Upgrade to Business Plan to see SLA"
+      >
+        <Lock className="w-3.5 h-3.5" />
+        <span>Upgrade for SLA</span>
+      </div>
+    );
+  }
+
   if (!deadline) return null;
 
   const target = new Date(deadline);

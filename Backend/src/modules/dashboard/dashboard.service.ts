@@ -198,23 +198,35 @@ export async function getAIInsights(userId: string) {
     take: 1,
   });
 
-  let topIssue = "No complaints yet";
-  if (brandCounts.length > 0) {
-    const topBrand = brandCounts[0]!;
-    if (topBrand.brandId) {
+  let topIssue = "building your history";
+  let resolutionSuggestion = "";
+
+  if (totalUserComplaints === 0) {
+    topIssue = "getting started";
+    resolutionSuggestion = "Start building your Trust Score details";
+  } else if (totalUserComplaints < 5) {
+    if (brandCounts.length > 0 && brandCounts[0].brandId) {
       const brand = await prisma.brand.findUnique({
-        where: { id: topBrand.brandId },
+        where: { id: brandCounts[0].brandId },
+      });
+      if (brand) topIssue = brand.name;
+    }
+    resolutionSuggestion = "Detailed complaints resolve 2x faster";
+  } else {
+    // Standard Logic for established users
+    if (brandCounts.length > 0 && brandCounts[0].brandId) {
+      const brand = await prisma.brand.findUnique({
+        where: { id: brandCounts[0].brandId },
       });
       if (brand) {
-        topIssue = `${topBrand._count.brandId} issues with ${brand.name}`;
+        topIssue = `${brandCounts[0]._count.brandId} issues with ${brand.name}`;
       }
     }
+    resolutionSuggestion =
+      userResolutionRate < 50
+        ? "Add more evidence to boost credibility"
+        : "Excellent! Your resolution rate is strong";
   }
-
-  const resolutionSuggestion =
-    userResolutionRate < 50
-      ? "Focus on high-resolution brands like those in your top list for better results."
-      : "Excellent! Your resolution rate is above the platform average.";
 
   return {
     topIssue,

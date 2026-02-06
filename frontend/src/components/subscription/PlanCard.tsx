@@ -103,7 +103,9 @@ export function PlanCard({
         form.submit();
       } else {
         const err = await res.json();
-        alert(err.error || "Failed to initiate checkout");
+        alert(
+          "Something went wrong while initiating the checkout. Please try again.",
+        );
       }
     } catch (error) {
       console.error("Checkout error:", error);
@@ -220,7 +222,9 @@ export function PlanCard({
                   window.location.href = `/brand/subscription/success?plan=${plan}`;
                 } else {
                   console.error("[DEV] Failed to activate plan:", data);
-                  alert(data.error || "Failed to activate plan");
+                  alert(
+                    "Something went wrong while activating the plan. Please try again.",
+                  );
                 }
               } catch (e) {
                 console.error("[DEV] Error:", e);

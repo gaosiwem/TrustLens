@@ -27,22 +27,39 @@ export function AssigneeSelect({
   const [assigning, setAssigning] = useState(false);
   const [currentId, setCurrentId] = useState(currentAssigneeId || null);
 
+  const [restricted, setRestricted] = useState(false);
+
   useEffect(() => {
     setCurrentId(currentAssigneeId || null);
     loadMembers();
   }, [currentAssigneeId, brandId]);
 
   const loadMembers = async () => {
-    if (loading || members.length > 0) return;
+    if (loading || members.length > 0 || restricted) return;
+    if (!brandId || !session?.accessToken) return;
+
     setLoading(true);
     try {
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/brands/${brandId}/team`,
-        { headers: { Authorization: `Bearer ${session?.accessToken}` } },
-      );
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+      const res = await axios.get(`${apiUrl}/brands/${brandId}/team`, {
+        headers: { Authorization: `Bearer ${session?.accessToken}` },
+      });
       setMembers(res.data);
-    } catch (err) {
-      console.error(err);
+
+      // Auto-assign if I'm the only member and it's currently unassigned
+      if (res.data.length === 1 && !currentAssigneeId && session?.user?.id) {
+        const soleMember = res.data[0];
+        // Ensure the sole member is actually the logged-in user (sanity check)
+        if (soleMember.userId === session.user.id) {
+          handleAssign(soleMember.userId);
+        }
+      }
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setRestricted(true);
+      } else {
+        console.error(err);
+      }
     } finally {
       setLoading(false);
     }
@@ -52,14 +69,13 @@ export function AssigneeSelect({
     if (userId === currentId) return;
     setAssigning(true);
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
       const payload =
         userId === null ? { assignedToId: null } : { assignedToId: userId };
 
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}/complaints/${complaintId}/assign`,
-        payload,
-        { headers: { Authorization: `Bearer ${session?.accessToken}` } },
-      );
+      await axios.patch(`${apiUrl}/complaints/${complaintId}/assign`, payload, {
+        headers: { Authorization: `Bearer ${session?.accessToken}` },
+      });
 
       setCurrentId(userId);
       toast.success(
@@ -93,10 +109,15 @@ export function AssigneeSelect({
 
       <Menu as="div" className="relative w-full">
         <Menu.Button
+          disabled={restricted}
           className={clsx(
             "input-base w-full h-12 px-4 flex items-center justify-between",
             "bg-background text-left transition-all",
-            loading ? "opacity-70 cursor-wait" : "cursor-pointer",
+            loading
+              ? "opacity-70 cursor-wait"
+              : restricted
+                ? "opacity-50 cursor-not-allowed bg-muted"
+                : "cursor-pointer",
           )}
         >
           <span className="flex items-center gap-3 truncate">
@@ -105,14 +126,20 @@ export function AssigneeSelect({
               className={clsx(
                 "truncate text-sm",
                 !currentMember && "text-muted-foreground",
+                restricted &&
+                  "text-muted-foreground/50 italic bg-amber-500/10 px-2 py-0.5 rounded text-[10px]",
               )}
             >
               {loading && members.length === 0
                 ? "Loading team..."
-                : displayName}
+                : restricted
+                  ? "Available on Business Plan"
+                  : displayName}
             </span>
           </span>
-          <ChevronDown className="w-4 h-4 text-muted-foreground opacity-50 shrink-0" />
+          {!restricted && (
+            <ChevronDown className="w-4 h-4 text-muted-foreground opacity-50 shrink-0" />
+          )}
         </Menu.Button>
 
         <Transition

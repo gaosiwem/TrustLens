@@ -15,6 +15,7 @@ export function BrandLogo({
   className,
 }: BrandLogoProps) {
   const [logoError, setLogoError] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const initials = getBrandInitials(brandName);
   const bgColor = getBrandColor(brandName);
 
@@ -37,15 +38,33 @@ export function BrandLogo({
   const finalSrc = getAssetUrl(brandLogoUrl);
 
   return (
-    <img
-      src={finalSrc}
-      alt={brandName}
+    <div
       className={cn(
-        "rounded-lg object-contain bg-white shrink-0 shadow-sm",
+        "relative rounded-lg shrink-0 shadow-sm overflow-hidden",
         className || "w-12 h-12",
       )}
-      onError={() => setLogoError(true)}
-    />
+    >
+      {/* Placeholder / Shimmer while loading */}
+      {!isLoaded && (
+        <div
+          className="absolute inset-0 flex items-center justify-center font-bold text-white bg-muted animate-pulse"
+          style={{ backgroundColor: !logoError ? bgColor : undefined }}
+        >
+          {initials}
+        </div>
+      )}
+
+      <img
+        src={finalSrc}
+        alt={brandName}
+        className={cn(
+          "w-full h-full object-contain bg-white transition-opacity duration-300",
+          isLoaded ? "opacity-100" : "opacity-0",
+        )}
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setLogoError(true)}
+      />
+    </div>
   );
 }
 

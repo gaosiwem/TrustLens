@@ -13,9 +13,23 @@ export async function createComplaintController(req: Request, res: Response) {
   try {
     logger.info("[ComplaintController] Creating complaint. Body:", req.body);
 
-    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+    const userId = req.user.userId || (req.user as any).id;
+
+    if (!userId) {
+      logger.error(
+        "[ComplaintController] Missing userId/id in token:",
+        JSON.stringify(req.user),
+      );
+      return res
+        .status(401)
+        .json({ error: "Invalid token: missing user identity" });
+    }
 
     // BRAND users cannot create complaints
+    logger.info(
+      "[ComplaintController] req.user structure:",
+      JSON.stringify(req.user),
+    );
     if (req.user.role === "BRAND") {
       return res.status(403).json({
         error: "Brand representatives cannot create new complaints.",
@@ -23,7 +37,7 @@ export async function createComplaintController(req: Request, res: Response) {
     }
 
     const complaint = await createComplaint({
-      userId: req.user.userId,
+      userId,
       brandName: req.body.brandName || req.body.brand,
       title: req.body.title,
       description: req.body.description,
@@ -101,10 +115,13 @@ export async function listComplaintsController(req: Request, res: Response) {
       search: req.query["search"] as string | undefined,
       sortBy: req.query["sortBy"] as string | undefined,
       sortOrder: req.query["sortOrder"] as "asc" | "desc" | undefined,
+      category: req.query["category"] as string | undefined,
+      rating: req.query["rating"] ? Number(req.query["rating"]) : undefined,
     });
 
     res.json(result);
   } catch (error: any) {
+    logger.error("[ListComplaints] Error:", error);
     res.status(400).json({ error: error.message });
   }
 }
@@ -124,14 +141,21 @@ export async function searchComplaintsController(req: Request, res: Response) {
       ...(status && { status }),
       ...(brandName && { brandName }),
       ...(query && { query }),
+      category: req.query.category as string | undefined,
+      rating: req.query.rating ? Number(req.query.rating) : undefined,
     };
 
     const result = await searchComplaints(searchParams);
 
     res.json(result);
   } catch (error: any) {
-    console.error("Search complaints error:", error);
-    res.status(500).json({ error: "Failed to search complaints" });
+    logger.error(
+      "[SearchComplaintsController] Error searching complaints:",
+      error,
+    );
+    res
+      .status(500)
+      .json({ error: "Failed to search complaints", details: error.message });
   }
 }
 

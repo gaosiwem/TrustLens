@@ -53,7 +53,7 @@ export default function AdminBrandQueue() {
       );
     } catch (error) {
       console.error("Action failed:", error);
-      toast.error("Failed to update claim status");
+      toast.error("Something went wrong. Please try again.");
     }
   };
 

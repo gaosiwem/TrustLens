@@ -35,15 +35,7 @@ export async function createBrandController(req: Request, res: Response) {
 export async function updateBrandController(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const {
-      name,
-      logoUrl,
-      isVerified,
-      description,
-      websiteUrl,
-      supportEmail,
-      supportPhone,
-    } = req.body;
+    const { name, logoUrl, supportEmail, supportPhone, category } = req.body;
     const file = req.file;
     const user = (req as any).user;
 
@@ -106,10 +98,10 @@ export async function updateBrandController(req: Request, res: Response) {
     const updateData: any = {
       name,
       logoUrl: finalLogoUrl,
-      description,
       websiteUrl,
       supportEmail,
       supportPhone,
+      category,
     };
 
     if (isVerified !== undefined && isAdmin) {

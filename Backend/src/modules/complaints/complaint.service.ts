@@ -30,8 +30,13 @@ export async function createComplaint(input: {
 
   const user = await prisma.user.findUnique({
     where: { id: input.userId },
-    select: { name: true, email: true },
+    select: { id: true, name: true, email: true },
   });
+
+  if (!user) {
+    logger.error("[ComplaintService] User not found: %s", input.userId);
+    throw new Error(`User with ID "${input.userId}" not found.`);
+  }
 
   // Calculate SLA Deadline
   const slaDeadline = await calculateSLADeadline((brand as any).id);
@@ -251,10 +256,25 @@ export async function listComplaints(params: {
   search?: string | undefined;
   sortBy?: string | undefined;
   sortOrder?: "asc" | "desc" | undefined;
+  category?: string | undefined;
+  rating?: number | undefined;
 }) {
   const where: any = {};
   if (params.status) where.status = params.status;
   if (params.userId) where.userId = params.userId;
+  if (params.category) {
+    where.brand = {
+      ...(where.brand || {}),
+      category: { equals: params.category, mode: "insensitive" },
+    };
+  }
+  if (params.rating) {
+    where.ratings = {
+      some: {
+        stars: params.rating,
+      },
+    };
+  }
   if (params.brandId) {
     if (Array.isArray(params.brandId)) {
       where.brandId = { in: params.brandId };
@@ -340,8 +360,20 @@ export async function searchComplaints(params: {
   query?: string;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
+  category?: string;
+  rating?: number;
 }) {
-  const { page, limit, status, brandName, query, sortBy, sortOrder } = params;
+  const {
+    page,
+    limit,
+    status,
+    brandName,
+    query,
+    sortBy,
+    sortOrder,
+    category,
+    rating,
+  } = params;
   const skip = (page - 1) * limit;
 
   const where: any = {};
@@ -350,8 +382,24 @@ export async function searchComplaints(params: {
     where.status = status;
   }
 
+  if (rating) {
+    where.ratings = {
+      some: {
+        stars: rating,
+      },
+    };
+  }
+
+  if (category) {
+    where.brand = {
+      ...(where.brand || {}),
+      category: { equals: category, mode: "insensitive" },
+    };
+  }
+
   if (brandName) {
     where.brand = {
+      ...(where.brand || {}),
       name: { contains: brandName, mode: "insensitive" },
     };
   }

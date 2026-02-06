@@ -2,6 +2,7 @@ import prisma from "../../lib/prisma.js";
 import { findBrandLogo } from "./logo.service.js";
 import logger from "../../config/logger.js";
 import { logAction } from "../audit/audit.service.js";
+import { personalDomains } from "../../utils/email.utils.js";
 
 export async function resolveBrand(
   name: string,
@@ -179,6 +180,7 @@ export async function searchBrandsWithRatings(query: string) {
       averageRating: totalRatings > 0 ? totalStars / totalRatings : 0,
       totalRatings,
       complaintCount: brand.complaints.length,
+      category: brand.category,
     };
   });
 }
@@ -209,10 +211,12 @@ export async function updateBrand(
     websiteUrl?: string;
     supportEmail?: string;
     supportPhone?: string;
+    category?: string;
   },
 ) {
   const updateData: any = {};
   if (data.name !== undefined) updateData.name = data.name;
+  if (data.category !== undefined) updateData.category = data.category;
   if (data.logoUrl !== undefined) {
     updateData.logoUrl =
       data.logoUrl === "" || data.logoUrl === undefined ? null : data.logoUrl;
@@ -426,92 +430,91 @@ export async function processBrandClaim(
   }
 
   // Use a transaction for non-idempotent approval logic
-  return await prisma.$transaction(async (tx) => {
-    const updatedClaim = await tx.brandClaim.update({
-      where: { id: claimId },
-      data: { status },
-    });
+  return await prisma.$transaction(
+    async (tx) => {
+      const updatedClaim = await tx.brandClaim.update({
+        where: { id: claimId },
+        data: { status },
+      });
 
-    if (status === "APPROVED") {
-      logger.info(
-        `Claim approved for brand "${claim.brandName}" by user ${claim.userId}`,
-      );
+      if (status === "APPROVED") {
+        logger.info(
+          `Claim approved for brand "${claim.brandName}" by user ${claim.userId}`,
+        );
 
-      let domainHint: string | undefined = undefined;
+        let domainHint: string | undefined = undefined;
 
-      if ((claim as any).websiteUrl) {
-        try {
-          const urlStr = (claim as any).websiteUrl.trim();
-          const url = new URL(
-            urlStr.startsWith("http") ? urlStr : `https://${urlStr}`,
-          );
-          domainHint = url.hostname.replace(/^www\./, "");
-        } catch (e) {
-          domainHint = (claim as any).websiteUrl;
-        }
-      } else {
-        const emailDomain = claim.email.split("@")[1]?.toLowerCase();
-        // Only hint if it's NOT a personal domain
-        try {
-          const { personalDomains } =
-            await import("../../utils/email.utils.js");
+        if ((claim as any).websiteUrl) {
+          try {
+            const urlStr = (claim as any).websiteUrl.trim();
+            const url = new URL(
+              urlStr.startsWith("http") ? urlStr : `https://${urlStr}`,
+            );
+            domainHint = url.hostname.replace(/^www\./, "");
+          } catch (e) {
+            domainHint = (claim as any).websiteUrl;
+          }
+        } else {
+          const emailDomain = claim.email.split("@")[1]?.toLowerCase();
+          // Only hint if it's NOT a personal domain
           if (emailDomain && !personalDomains.includes(emailDomain)) {
             domainHint = emailDomain;
           }
-        } catch (err) {
-          logger.warn("Could not import email utils during claim processing");
-        }
-      }
-
-      try {
-        // Resolve or create the brand
-        const normalized = claim.brandName.trim();
-        let brand = await tx.brand.findFirst({
-          where: { name: { equals: normalized, mode: "insensitive" } },
-        });
-
-        if (!brand) {
-          logger.info(`Creating new brand "${normalized}" for claim`);
-          brand = await (tx.brand.create({
-            data: {
-              name: normalized,
-              isVerified: true,
-              managerId: claim.userId,
-            } as any,
-          }) as any);
-        } else {
-          logger.info(`Updating existing brand "${brand.name}" for claim`);
-          brand = await (tx.brand.update({
-            where: { id: brand.id },
-            data: {
-              isVerified: true,
-              managerId: claim.userId,
-            } as any,
-          }) as any);
         }
 
-        // Promote user to BRAND role IF they are currently a regular USER
-        // (Don't demote ADMINs or MODERATORS)
-        const user = await tx.user.findUnique({
-          where: { id: claim.userId },
-          select: { role: true },
-        });
-
-        if (user && user.role === "USER") {
-          logger.info(`Promoting user ${claim.userId} to BRAND role`);
-          await tx.user.update({
-            where: { id: claim.userId },
-            data: { role: "BRAND" as any },
+        try {
+          // Resolve or create the brand
+          const normalized = claim.brandName.trim();
+          let brand = await tx.brand.findFirst({
+            where: { name: { equals: normalized, mode: "insensitive" } },
           });
-        }
-      } catch (err: any) {
-        logger.error(`Failed to satisfy approved claim: ${err.message}`, {
-          stack: err.stack,
-        });
-        throw new Error(`Failed to satisfy approved claim: ${err.message}`);
-      }
-    }
 
-    return updatedClaim;
-  });
+          if (!brand) {
+            logger.info(`Creating new brand "${normalized}" for claim`);
+            brand = await (tx.brand.create({
+              data: {
+                name: normalized,
+                isVerified: true,
+                managerId: claim.userId,
+              } as any,
+            }) as any);
+          } else {
+            logger.info(`Updating existing brand "${brand.name}" for claim`);
+            brand = await (tx.brand.update({
+              where: { id: brand.id },
+              data: {
+                isVerified: true,
+                managerId: claim.userId,
+              } as any,
+            }) as any);
+          }
+
+          // Promote user to BRAND role IF they are currently a regular USER
+          // (Don't demote ADMINs or MODERATORS)
+          const user = await tx.user.findUnique({
+            where: { id: claim.userId },
+            select: { role: true },
+          });
+
+          if (user && user.role === "USER") {
+            logger.info(`Promoting user ${claim.userId} to BRAND role`);
+            await tx.user.update({
+              where: { id: claim.userId },
+              data: { role: "BRAND" as any },
+            });
+          }
+        } catch (err: any) {
+          logger.error(`Failed to satisfy approved claim: ${err.message}`, {
+            stack: err.stack,
+          });
+          throw new Error(`Failed to satisfy approved claim: ${err.message}`);
+        }
+      }
+
+      return updatedClaim;
+    },
+    {
+      timeout: 30000, // Increase timeout to 30s to prevent 500 errors on slow DB connections
+    },
+  );
 }

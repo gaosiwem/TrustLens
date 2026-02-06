@@ -95,7 +95,9 @@ export default function CreateInvoiceModal({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to create invoice");
+      setError(
+        "Something went wrong while creating the invoice. Please try again.",
+      );
     } finally {
       setLoading(false);
     }

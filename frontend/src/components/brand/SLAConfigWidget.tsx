@@ -67,7 +67,7 @@ export default function SLAConfigWidget() {
       );
       toast.success("SLA settings saved");
     } catch (err) {
-      toast.error("Failed to save SLA settings");
+      toast.error("An error occurred. Please try again.");
     } finally {
       setSaving(false);
     }

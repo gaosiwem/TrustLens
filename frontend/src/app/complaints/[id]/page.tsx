@@ -13,9 +13,9 @@ export default function ComplaintDetailsPage() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <PublicHeader />
-      <div className="max-w-4xl mx-auto space-y-6 pt-10 px-4 sm:px-6 md:px-8">
+      <div className="max-w-7xl mx-auto space-y-6 pt-10 px-4 sm:px-6 md:px-8">
         {/* Complaint Detail Component */}
-        <ComplaintDetail id={complaintId} />
+        <ComplaintDetail id={complaintId} readonly={true} />
       </div>
     </div>
   );

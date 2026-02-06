@@ -16,6 +16,7 @@ model User {
   createdAt              DateTime                @default(now())
   managedBrands          Brand[]                 @relation("BrandManager")
   brandMemberships       BrandMember[]
+  assignedComplaints     Complaint[]             @relation("ComplaintAssignee")
   complaints             Complaint[]
   followups              Followup[]
   notifications          Notification[]
@@ -23,14 +24,6 @@ model User {
   ratings                Rating[]
   verificationRequests   VerifiedRequest[]
   verifiedSubscriptions  VerifiedSubscription[]
-  assignedComplaints     Complaint[]             @relation("ComplaintAssignee")
-}
-
-enum WidgetPlan {
-  FREE
-  PRO
-  BUSINESS
-  ENTERPRISE
 }
 
 model Brand {
@@ -46,30 +39,29 @@ model Brand {
   supportPhone         String?
   websiteUrl           String?
   category             String?               @default("General")
+  allowedDomains       String[]              @default([])
+  defaultTheme         String                @default("light")
+  googlePlaceId        String?
+  googleReviewUrl      String?
+  slug                 String?               @unique
+  widgetPlan           WidgetPlan            @default(FREE)
+  widgetRoutingEnabled Boolean               @default(true)
+  widgetWatermark      Boolean               @default(true)
+  widgetStyles         Json?
+  widgetWatermarkText  String?
   manager              User?                 @relation("BrandManager", fields: [managerId], references: [id])
   alertPreference      BrandAlertPreference?
   billingProfile       BrandBillingProfile?
+  dailyMetrics         BrandDailyMetrics[]
+  locations            BrandLocation[]
   members              BrandMember[]
+  slaConfig            BrandSLAConfig?
   subscriptions        BrandSubscription[]
   complaints           Complaint[]
   invoices             Invoice[]
   reputation           ReputationScore?
   verificationRequests VerifiedRequest[]
-  slaConfig            BrandSLAConfig?
-  
-  slug                  String?     @unique // Made optional initially to avoid migration issues, but strictly should be required
-  widgetPlan            WidgetPlan  @default(FREE)
-  widgetWatermark       Boolean     @default(true)
-  widgetWatermarkText   String?     // Custom text for Propelled by ...
-  widgetRoutingEnabled  Boolean     @default(true)
-  allowedDomains        String[]    @default([])
-  defaultTheme          String      @default("light")
-  googlePlaceId         String?
-  googleReviewUrl       String?
-  locations             BrandLocation[]
-  widgetKeys            WidgetKey[]
-  dailyMetrics          BrandDailyMetrics[]
-  widgetStyles          Json?       // Stores custom styling (colors, fonts) for premium widgets
+  widgetKeys           WidgetKey[]
 }
 
 model BrandMember {
@@ -267,17 +259,17 @@ model Complaint {
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
   lastRemindedAt DateTime?
+  assignedToId   String?
+  slaDeadline    DateTime?
+  slaStatus      SLAStatus                @default(ON_TRACK)
   attachments    Attachment[]
+  assignedTo     User?                    @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
   brand          Brand                    @relation(fields: [brandId], references: [id])
   user           User                     @relation(fields: [userId], references: [id])
   statusHistory  ComplaintStatusHistory[]
   escalationCase EscalationCase?
   followups      Followup[]
   ratings        Rating[]
-  assignedToId   String?
-  assignedTo     User?                    @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
-  slaDeadline    DateTime?
-  slaStatus      SLAStatus                @default(ON_TRACK)
 }
 
 model ReputationScore {
@@ -512,6 +504,72 @@ model ComplaintSentimentSnapshot {
   @@index([brandId])
 }
 
+model BrandSLAConfig {
+  id                    String   @id @default(uuid())
+  brandId               String   @unique
+  lowPriorityHours      Int      @default(48)
+  mediumPriorityHours   Int      @default(24)
+  highPriorityHours     Int      @default(4)
+  criticalPriorityHours Int      @default(1)
+  updatedAt             DateTime @updatedAt
+  brand                 Brand    @relation(fields: [brandId], references: [id])
+}
+
+model BrandLocation {
+  id            String              @id @default(cuid())
+  brandId       String
+  name          String
+  slug          String
+  googlePlaceId String?
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  metrics       BrandDailyMetrics[]
+  brand         Brand               @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, slug])
+}
+
+model WidgetKey {
+  id         String    @id @default(cuid())
+  brandId    String
+  key        String    @unique
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  brand      Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+}
+
+model BrandDailyMetrics {
+  id                         String         @id @default(cuid())
+  brandId                    String
+  locationId                 String?
+  date                       DateTime
+  complaintsOpened           Int            @default(0)
+  complaintsResolved         Int            @default(0)
+  responseRatePct            Float          @default(0)
+  medianFirstResponseMinutes Int            @default(0)
+  medianResolutionMinutes    Int            @default(0)
+  trustScore                 Int            @default(0)
+  sentimentAvg               Float          @default(0)
+  sentimentDelta30d          Float          @default(0)
+  createdAt                  DateTime       @default(now())
+  updatedAt                  DateTime       @updatedAt
+  brand                      Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  location                   BrandLocation? @relation(fields: [locationId], references: [id])
+
+  @@unique([brandId, locationId, date])
+  @@index([brandId, date])
+  @@index([brandId, locationId, date])
+}
+
+enum WidgetPlan {
+  FREE
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
 enum NotificationType {
   COMPLAINT_CREATED
   COMPLAINT_ESCALATED
@@ -596,67 +654,8 @@ enum SentimentSourceType {
   RATING
 }
 
-model BrandSLAConfig {
-  id             String   @id @default(uuid())
-  brandId        String   @unique
-  lowPriorityHours  Int   @default(48)
-  mediumPriorityHours Int @default(24)
-  highPriorityHours Int   @default(4)
-  criticalPriorityHours Int @default(1)
-  updatedAt      DateTime @updatedAt
-  brand          Brand    @relation(fields: [brandId], references: [id])
-}
-
 enum SLAStatus {
   ON_TRACK
   AT_RISK
   BREACHED
-}
-
-model BrandLocation {
-  id            String   @id @default(cuid())
-  brandId       String
-  brand         Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  name          String
-  slug          String
-  googlePlaceId String?
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  metrics       BrandDailyMetrics[]
-
-  @@unique([brandId, slug])
-}
-
-model WidgetKey {
-  id          String   @id @default(cuid())
-  brandId     String
-  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  key         String   @unique
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  lastUsedAt  DateTime?
-}
-
-model BrandDailyMetrics {
-  id                         String   @id @default(cuid())
-  brandId                    String
-  brand                      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  locationId                 String?
-  location                   BrandLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  date                       DateTime
-  complaintsOpened           Int      @default(0)
-  complaintsResolved         Int      @default(0)
-  responseRatePct            Float    @default(0)
-  medianFirstResponseMinutes Int      @default(0)
-  medianResolutionMinutes    Int      @default(0)
-  trustScore                 Int      @default(0)
-  sentimentAvg               Float    @default(0)
-  sentimentDelta30d          Float    @default(0)
-  createdAt                  DateTime @default(now())
-  updatedAt                  DateTime @updatedAt
-
-  @@index([brandId, date])
-  @@index([brandId, locationId, date])
-  @@unique([brandId, locationId, date])
 }

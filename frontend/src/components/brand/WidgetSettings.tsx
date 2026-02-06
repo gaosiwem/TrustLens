@@ -104,10 +104,10 @@ export default function WidgetSettings() {
       if (res.ok) {
         toast.success("Widget settings saved!");
       } else {
-        toast.error("Failed to save settings.");
+        toast.error("Something went wrong while saving settings.");
       }
     } catch (e) {
-      toast.error("Error saving settings.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -152,7 +152,7 @@ export default function WidgetSettings() {
 
   const handleGenerateKey = async () => {
     if (!brandId) {
-      toast.error("Brand ID missing.");
+      toast.error("Something went wrong. Please try again.");
       return;
     }
     const url = `${process.env.NEXT_PUBLIC_API_URL}/brands/${brandId}/widget-keys`;
@@ -171,11 +171,11 @@ export default function WidgetSettings() {
         toast.success("New widget key generated.");
       } else {
         console.error("Generate key failed:", data);
-        toast.error(`Failed: ${data.error || "Unknown error"}`);
+        toast.error("Something went wrong. Please try again.");
       }
     } catch (e) {
       console.error(e);
-      toast.error("Error generating key.");
+      toast.error("Something went wrong while generating the key.");
     }
   };
 

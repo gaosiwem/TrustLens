@@ -68,7 +68,7 @@ export default function CreateComplaint() {
     } catch (err: any) {
       console.error("Submission failed", err);
       alert(
-        err.response?.data?.error || "Something went wrong. Please try again."
+        "Something went wrong while submitting your complaint. Please try again.",
       );
       setIsSubmitting(false);
     }

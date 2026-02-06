@@ -85,7 +85,7 @@ export default function VerificationDashboard() {
       toast.success(`${type.replace(/_/g, " ")} uploaded successfully`);
       await loadData();
     } catch (error: any) {
-      toast.error(error.message || "Upload failed");
+      toast.error("Upload failed. Please try again.");
     } finally {
       setUploading(null);
     }

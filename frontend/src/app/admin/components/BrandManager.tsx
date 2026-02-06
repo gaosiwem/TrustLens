@@ -187,9 +187,9 @@ export default function BrandManager() {
             {item.isVerified ? "VERIFIED" : "UNVERIFIED"}
           </span>
           <span
-            className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider w-fit ${item.subscriptions.length > 0 ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"}`}
+            className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider w-fit ${item.subscriptions.length > 0 ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"}`}
           >
-            {item.subscriptions.length > 0 ? "ACTIVE" : "INACTIVE"}
+            {item.subscriptions.length > 0 ? "ACTIVE" : "FREE"}
           </span>
         </div>
       ),

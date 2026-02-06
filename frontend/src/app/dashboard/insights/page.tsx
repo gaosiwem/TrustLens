@@ -77,15 +77,34 @@ export default function AIInsightsPage() {
                 </h2>
 
                 <p className="text-base text-muted-foreground font-medium leading-relaxed italic">
-                  Based on your current interactions, your primary focus is on{" "}
-                  <span className="text-foreground font-bold underline decoration-primary/30 decoration-2">
-                    {data?.topIssue}
-                  </span>
-                  . Our models predict a resolution likelihood of{" "}
-                  <span className="text-foreground font-bold whitespace-nowrap">
-                    {data?.resolutionRate}%
-                  </span>{" "}
-                  across your active portfolio.
+                  {data?.brandPerformance.length === 0 ? (
+                    <span>
+                      We are waiting for your first complaint data to generate
+                      personalized predictions.
+                      <br className="mb-2" />
+                      <span className="text-foreground not-italic">
+                        Did you know?
+                      </span>{" "}
+                      Verified claims with photos are{" "}
+                      <span className="text-primary font-bold">
+                        3x more likely
+                      </span>{" "}
+                      to specific resolutions.
+                    </span>
+                  ) : (
+                    <>
+                      Based on your current interactions, your primary focus is
+                      on{" "}
+                      <span className="text-foreground font-bold underline decoration-primary/30 decoration-2">
+                        {data?.topIssue}
+                      </span>
+                      . Our models predict a resolution likelihood of{" "}
+                      <span className="text-foreground font-bold whitespace-nowrap">
+                        {data?.resolutionRate}%
+                      </span>{" "}
+                      across your active portfolio.
+                    </>
+                  )}
                 </p>
               </div>
 

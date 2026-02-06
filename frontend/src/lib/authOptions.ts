@@ -14,32 +14,44 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        try {
-          const apiUrl =
-            process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
 
-          // Call the real backend login endpoint
-          console.log(
-            `[Auth] Attempting login to ${apiUrl}/auth/login for ${credentials.email}`,
-          );
+        console.log(
+          `[Auth] Attempting login to ${apiUrl}/auth/login with email: ${credentials.email}`,
+        );
+
+        try {
           const response = await axios.post(`${apiUrl}/auth/login`, {
             email: credentials.email,
             password: credentials.password,
           });
 
+          console.log(
+            `[Auth] Backend response status: ${response.status}`,
+            response.data,
+          );
+
           const user = response.data.user;
           const token = response.data.token;
 
           if (user && token) {
-            // Return user object mixed with the token for session persistence
+            console.log("[Auth] Login successful for:", user.email);
             return { ...user, accessToken: token };
           }
+
+          console.warn("[Auth] Login response missing user or token");
           return null;
         } catch (error: any) {
-          console.error(
-            "[Auth] Login failed:",
-            error.response?.data || error.message,
-          );
+          console.error("[Auth] Backend login request failed:");
+          if (error.response) {
+            console.error("[Auth] Status:", error.response.status);
+            console.error("[Auth] Data:", error.response.data);
+          } else if (error.request) {
+            console.error("[Auth] No response received from backend");
+          } else {
+            console.error("[Auth] Request Setup Error:", error.message);
+          }
           return null;
         }
       },

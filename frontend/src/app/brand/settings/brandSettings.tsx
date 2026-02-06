@@ -108,10 +108,12 @@ export default function BrandSettings() {
         toast.success("Brand settings updated successfully!");
       } else {
         const err = await res.json();
-        toast.error(err.error || "Failed to update settings");
+        toast.error(
+          "An error occurred while updating settings. Please try again.",
+        );
       }
     } catch (error) {
-      toast.error("An error occurred");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -383,11 +385,11 @@ function AlertPreferencesSettings({ session }: { session: any }) {
       if (res.ok) {
         toast.success("Preferences saved successfully!");
       } else {
-        toast.error("Failed to save preferences.");
+        toast.error("Something went wrong while saving preferences.");
       }
     } catch (e) {
       console.error(e);
-      toast.error("Error saving preferences.");
+      toast.error("An error occurred. Please try again.");
     } finally {
       setSaving(false);
     }

@@ -124,9 +124,13 @@ export default function CreateComplaint() {
       router.push("/dashboard");
     } catch (error: any) {
       console.error("Submission error:", error);
+      if (error.response?.status === 401) {
+        toast.error("Your session has expired. Please log in again.");
+        router.push("/auth/login?callbackUrl=/dashboard/complaints/create");
+        return;
+      }
       toast.error(
-        "Failed to submit complaint: " +
-          (error.response?.data?.error || error.message),
+        "An error occurred while submitting your complaint. Please try again later.",
       );
     } finally {
       setIsSubmitting(false);

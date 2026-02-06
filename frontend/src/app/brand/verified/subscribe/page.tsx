@@ -73,7 +73,7 @@ export default function VerificationSubscribePage() {
       document.body.appendChild(form);
       form.submit();
     } catch (error: any) {
-      toast.error(error.message || "Failed to initiate subscription");
+      toast.error("Failed to initiate subscription. Please try again later.");
     } finally {
       setLoading(null);
     }

@@ -108,7 +108,9 @@ export default function EditBrandDialog({
       onClose();
     } catch (error: any) {
       console.error("Failed to update brand:", error);
-      toast.error(error.response?.data?.error || "Failed to update brand");
+      toast.error(
+        "An error occurred while updating brand details. Please try again.",
+      );
     } finally {
       setUpdating(false);
     }

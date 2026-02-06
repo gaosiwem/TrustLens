@@ -35,7 +35,7 @@ export function BrandIntelligenceSection() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ planCode }),
-        }
+        },
       );
 
       if (res.ok) {
@@ -59,7 +59,9 @@ export function BrandIntelligenceSection() {
         form.submit();
       } else {
         const err = await res.json();
-        alert(err.error || "Failed to initiate checkout");
+        alert(
+          "Something went wrong while initiating the checkout. Please try again.",
+        );
       }
     } catch (error) {
       console.error("Checkout error:", error);

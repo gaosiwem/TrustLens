@@ -113,9 +113,9 @@ export default function BrandClaimForm() {
         router.push("/dashboard");
       }, 2000);
     } catch (e: any) {
-      const errorMessage =
-        e.response?.data?.error || "Error submitting brand claim.";
-      toast.error(errorMessage);
+      toast.error(
+        "Could not submit brand claim. Please verify your details and try again.",
+      );
     }
   };
 

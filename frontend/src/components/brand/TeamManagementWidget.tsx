@@ -47,7 +47,7 @@ export default function TeamManagementWidget() {
       setMembers(res.data);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load team members");
+      toast.error("Something went wrong. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export default function TeamManagementWidget() {
       setInviteEmail("");
       fetchMembers();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to invite user");
+      toast.error("Could not invite user. Please try again.");
     } finally {
       setInviting(false);
     }
@@ -84,7 +84,7 @@ export default function TeamManagementWidget() {
       toast.success("Member removed");
       setMembers(members.filter((m) => m.userId !== userId));
     } catch (err) {
-      toast.error("Failed to remove member");
+      toast.error("Failed to remove member. Please try again.");
     }
   };
 

@@ -190,7 +190,9 @@ export default function InvoiceList({
                           );
                           window.open(url, "_blank");
                         } catch (e) {
-                          toast.error("Failed to preview invoice");
+                          toast.error(
+                            "Something went wrong while previewing the invoice.",
+                          );
                         }
                       }}
                       className="text-muted-foreground hover:text-foreground transition-colors p-1"
@@ -212,7 +214,9 @@ export default function InvoiceList({
                           );
                           toast.success("Invoice resent successfully");
                         } catch (e) {
-                          toast.error("Failed to resend invoice");
+                          toast.error(
+                            "Something went wrong. Please try again.",
+                          );
                         }
                       }}
                       className="text-muted-foreground hover:text-foreground transition-colors p-1"
