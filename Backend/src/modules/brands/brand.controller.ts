@@ -34,8 +34,17 @@ export async function createBrandController(req: Request, res: Response) {
 
 export async function updateBrandController(req: Request, res: Response) {
   try {
-    const { id } = req.params;
-    const { name, logoUrl, supportEmail, supportPhone, category } = req.body;
+    const id = req.params.id as string;
+    const {
+      name,
+      logoUrl,
+      supportEmail,
+      supportPhone,
+      category,
+      description,
+      websiteUrl,
+      isVerified,
+    } = req.body;
     const file = req.file;
     const user = (req as any).user;
 
@@ -140,7 +149,7 @@ export async function getBrandsController(req: Request, res: Response) {
 
 export async function deleteBrandController(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     if (!id) return res.status(400).json({ error: "Missing brand ID" });
     await deleteBrand(id);
     res.status(204).end();
@@ -154,7 +163,7 @@ export async function toggleBrandVerificationController(
   res: Response,
 ) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     if (!id) return res.status(400).json({ error: "Missing brand ID" });
     const brand = await toggleBrandVerification(id);
     res.json(brand);
@@ -181,7 +190,7 @@ export async function getPublicBrandProfileController(
   res: Response,
 ) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     if (!id) return res.status(400).json({ error: "Missing brand ID" });
 
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
@@ -224,7 +233,7 @@ export async function getBrandTrustScoreController(
   res: Response,
 ) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     if (!id) return res.status(400).json({ error: "Brand ID is required" });
     const score = await getLatestTrustScore("BRAND", id);
     if (!score) return res.status(404).json({ error: "Trust score not found" });
@@ -239,7 +248,7 @@ export async function getBrandEnforcementsController(
   res: Response,
 ) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const enforcements = await prisma.enforcementAction.findMany({
       where: { entityType: "BRAND", entityId: id, resolvedAt: null },
       orderBy: { createdAt: "desc" },
@@ -252,7 +261,7 @@ export async function getBrandEnforcementsController(
 
 export async function getBrandByIdController(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     if (!id) return res.status(400).json({ error: "Missing brand ID" });
 
     const brand = await getBrandById(id);
@@ -294,7 +303,7 @@ export async function updateBrandWidgetSettingsController(
   res: Response,
 ) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const {
       allowedDomains,
       widgetWatermark,
@@ -358,7 +367,7 @@ export async function createBrandWidgetKeyController(
   res: Response,
 ) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const userId = (req as any).user.userId;
 
     const brand = await prisma.brand.findUnique({ where: { id } });

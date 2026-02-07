@@ -33,7 +33,7 @@ export function auditMiddleware(action: string, targetType: string) {
       req,
       action,
       targetType,
-      ...(req.params.id && { targetId: req.params.id }),
+      ...(req.params.id && { targetId: req.params.id as string }),
     });
 
     next();

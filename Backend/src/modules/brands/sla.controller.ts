@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 // Get SLA Config
 export const getSLAConfig = async (req: Request, res: Response) => {
   try {
-    const { id: brandId } = req.params;
+    const brandId = req.params.id as string;
 
     let config = await prisma.brandSLAConfig.findUnique({
       where: { brandId },
@@ -33,7 +33,7 @@ export const getSLAConfig = async (req: Request, res: Response) => {
 // Update SLA Config
 export const updateSLAConfig = async (req: Request, res: Response) => {
   try {
-    const { id: brandId } = req.params;
+    const brandId = req.params.id as string;
     const { low, medium, high, critical } = req.body;
 
     const config = await prisma.brandSLAConfig.upsert({

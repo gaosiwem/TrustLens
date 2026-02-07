@@ -108,7 +108,7 @@ export async function getComplaintSentimentSnapshotController(
   try {
     const user = (req as any).user;
     const brandId = user.brandId;
-    const { id: complaintId } = req.params;
+    const complaintId = req.params.id as string;
 
     if (!brandId) {
       return res

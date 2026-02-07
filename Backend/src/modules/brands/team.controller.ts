@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 // Get Team Members
 export const getTeamMembers = async (req: Request, res: Response) => {
   try {
-    const { id: brandId } = req.params;
+    const brandId = req.params.id as string;
 
     // Ensure the current user has access to this brand
     // (Assuming middleware has already validated user is authenticated and part of the brand)
@@ -45,7 +45,7 @@ export const getTeamMembers = async (req: Request, res: Response) => {
 // Invite Team Member
 export const inviteTeamMember = async (req: Request, res: Response) => {
   try {
-    const { id: brandId } = req.params;
+    const brandId = req.params.id as string;
     const { email } = req.body;
 
     if (!email) return res.status(400).json({ error: "Email is required" });
@@ -100,7 +100,8 @@ export const inviteTeamMember = async (req: Request, res: Response) => {
 // Remove Team Member
 export const removeTeamMember = async (req: Request, res: Response) => {
   try {
-    const { id: brandId, userId } = req.params;
+    const brandId = req.params.id as string;
+    const userId = req.params.userId as string;
 
     // Prevent removing self? (Optional logic)
 

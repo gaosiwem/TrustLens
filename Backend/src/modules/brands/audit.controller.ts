@@ -4,7 +4,7 @@ import { subDays } from "date-fns";
 
 export async function getBrandAuditController(req: Request, res: Response) {
   try {
-    const { id: brandId } = req.params;
+    const brandId = req.params.id as string;
 
     // Default to last 90 days for the "Pulse" dashboard view
     const endDate = new Date();

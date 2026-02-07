@@ -7,7 +7,7 @@ import { prisma } from "../../lib/prisma.js";
 
 export async function getRootCauseController(req: Request, res: Response) {
   try {
-    const { id: brandId } = req.params;
+    const brandId = req.params.id as string;
     if (!brandId) {
       return res.status(400).json({ error: "Brand ID is required" });
     }
@@ -51,7 +51,7 @@ export async function getRootCauseController(req: Request, res: Response) {
 
 export async function getCompetitorAnalysis(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     if (!id) {
       return res.status(400).json({ error: "Brand ID is required" });
     }

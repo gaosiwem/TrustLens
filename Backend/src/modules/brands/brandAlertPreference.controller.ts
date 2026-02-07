@@ -26,7 +26,7 @@ async function checkBrandAccess(
 export async function getBrandPrefsController(req: Request, res: Response) {
   try {
     const userId = req.user?.userId;
-    const brandId = req.params.id;
+    const brandId = req.params.id as string;
 
     if (!userId || !brandId) {
       return res.status(400).json({ error: "Missing parameters" });
@@ -48,7 +48,7 @@ export async function getBrandPrefsController(req: Request, res: Response) {
 export async function updateBrandPrefsController(req: Request, res: Response) {
   try {
     const userId = req.user?.userId;
-    const brandId = req.params.id;
+    const brandId = req.params.id as string;
     const data = req.body;
 
     if (!userId || !brandId) {
