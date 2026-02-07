@@ -16,6 +16,7 @@ import AdminBrandQueue from "../../components/AdminBrandQueue";
 import AdminVerificationQueue from "./components/AdminVerificationQueue";
 import VerificationOps from "./verification-ops/page";
 import InvoiceManager from "./components/InvoiceManager";
+import GovernanceDashboard from "./components/GovernanceDashboard";
 
 export default function AdminDashboardPage() {
   const { data: session } = useSession();
