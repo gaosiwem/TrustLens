@@ -29,4 +29,17 @@ yarn-error.log*
 next-env.d.ts
 
 *.map
-scripts/
+
+# Exclude all root-level documentation and scripts
+/*.md
+/*.txt
+/*.py
+/*.ps1
+/*.js
+/*.ts
+
+# Keep Docker Compose for orchestration
+!/docker-compose.yml
+
+# Agent directory
+/.agent/
