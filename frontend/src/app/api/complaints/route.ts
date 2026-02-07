@@ -55,24 +55,15 @@ async function proxyRequest(req: Request, pathArray: string[]) {
   }
 }
 
-export async function GET(
-  req: Request,
-  { params }: { params: { path: string[] } },
-) {
-  return proxyRequest(req, params.path);
+export async function GET(req: Request) {
+  return proxyRequest(req, []);
 }
 
-export async function POST(
-  req: Request,
-  { params }: { params: { path: string[] } },
-) {
-  return proxyRequest(req, params.path);
+export async function POST(req: Request) {
+  return proxyRequest(req, []);
 }
 
 // Support requests to /api/complaints (no subpath)
-export async function PATCH(
-  req: Request,
-  { params }: { params: { path: string[] } },
-) {
-  return proxyRequest(req, params.path);
+export async function PATCH(req: Request) {
+  return proxyRequest(req, []);
 }
