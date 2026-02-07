@@ -222,7 +222,7 @@ export default function HistoricalBenchmarkingWidget({
                   mode: "index",
                   intersect: false,
                   bodyFont: { size: 10, weight: "bold" },
-                  titleFont: { size: 10, weight: "black" },
+                  titleFont: { size: 10, weight: "bold" },
                 },
               },
               scales: {
