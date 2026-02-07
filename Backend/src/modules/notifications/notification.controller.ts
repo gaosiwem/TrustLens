@@ -114,7 +114,7 @@ export async function markNotificationReadController(
   res: Response,
 ) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const user = (req as any).user;
     const userId = user?.userId || user?.id;
 

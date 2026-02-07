@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@jest/globals";
-import prisma from "../prismaClient.js";
+import { prisma } from "../lib/prisma.js";
 import { resolveBrand } from "../modules/brands/brand.service.js";
 
 describe("Domain Hint Logic", () => {
@@ -16,7 +16,7 @@ describe("Domain Hint Logic", () => {
       false,
       undefined,
       undefined,
-      domainHint
+      domainHint,
     );
     expect(brand).toBeDefined();
 

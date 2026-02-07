@@ -12,7 +12,7 @@ const getPlanLevel = (code: string) => {
 
 export async function getTrustForecastController(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const brandId = id;
     const user = (req as any).user;
 

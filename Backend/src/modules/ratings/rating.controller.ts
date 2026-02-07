@@ -37,7 +37,7 @@ export async function createRatingController(req: Request, res: Response) {
 
 export async function getRatingsController(req: Request, res: Response) {
   try {
-    const { complaintId } = req.params;
+    const complaintId = req.params.complaintId as string;
 
     if (!complaintId) {
       return res.status(400).json({ error: "Complaint ID is required" });
@@ -54,7 +54,7 @@ export async function getRatingsController(req: Request, res: Response) {
 export async function getUserRatingController(req: Request, res: Response) {
   try {
     const userId = req.user?.userId;
-    const { complaintId } = req.params;
+    const complaintId = req.params.complaintId as string;
 
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });

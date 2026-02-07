@@ -60,7 +60,7 @@ export async function addFollowupController(req: Request, res: Response) {
 
 export async function getFollowupsController(req: Request, res: Response) {
   try {
-    const { complaintId } = req.params;
+    const complaintId = req.params.complaintId as string;
 
     if (!complaintId) {
       return res.status(400).json({ error: "Complaint ID required" });
@@ -81,7 +81,7 @@ export async function deleteFollowupController(req: Request, res: Response) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       return res.status(400).json({ error: "Followup ID required" });

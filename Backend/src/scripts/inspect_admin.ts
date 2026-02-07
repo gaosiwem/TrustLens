@@ -11,7 +11,7 @@ async function main() {
     include: {
       managedBrands: {
         include: {
-          subscription: {
+          subscriptions: {
             include: { plan: true },
           },
           verificationRequests: {
@@ -30,12 +30,14 @@ async function main() {
   console.log("User ID:", user.id);
   console.log("Role:", user.role);
 
-  if (!user.managedBrands || user.managedBrands.length === 0) {
+  const managedBrands = (user as any).managedBrands;
+
+  if (!managedBrands || managedBrands.length === 0) {
     console.log("No managed brand found for this user.");
     return;
   }
 
-  const brand = user.managedBrands[0];
+  const brand = managedBrands[0];
 
   console.log("--- Brand State ---");
   console.log("ID:", brand.id);
@@ -43,11 +45,12 @@ async function main() {
   console.log("Is Verified (public flag):", brand.isVerified);
 
   console.log("\n--- Subscription State ---");
-  if (brand.subscription) {
-    console.log("Status:", brand.subscription.status);
-    console.log("Plan:", brand.subscription.plan.code);
-    console.log("Started At:", brand.subscription.startedAt);
-    console.log("Ends At:", brand.subscription.endsAt);
+  if (brand.subscriptions && brand.subscriptions.length > 0) {
+    const sub = brand.subscriptions[0];
+    console.log("Status:", sub.status);
+    console.log("Plan:", sub.plan.code);
+    console.log("Started At:", sub.startedAt);
+    console.log("Ends At:", sub.endsAt);
   } else {
     console.log("No active subscription.");
   }

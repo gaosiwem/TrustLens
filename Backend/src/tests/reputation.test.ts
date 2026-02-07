@@ -27,7 +27,7 @@ describe("Reputation Engine", () => {
   });
 });
 
-import prisma from "../prismaClient.js";
+import { prisma } from "../lib/prisma.js";
 import { recalcBrandScore } from "../modules/reputation/reputation.service.js";
 import { ComplaintStatus } from "@prisma/client";
 

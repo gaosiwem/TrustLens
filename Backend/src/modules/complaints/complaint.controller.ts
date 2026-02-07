@@ -54,7 +54,7 @@ export async function createComplaintController(req: Request, res: Response) {
 export async function updateStatusController(req: Request, res: Response) {
   try {
     if (!req.user) return res.status(401).json({ error: "Unauthorized" });
-    const id = req.params["id"];
+    const id = req.params["id"] as string;
     if (!id) return res.status(400).json({ error: "Missing ID" });
 
     await changeComplaintStatus({
@@ -161,7 +161,7 @@ export async function searchComplaintsController(req: Request, res: Response) {
 
 export async function getComplaintByIdController(req: Request, res: Response) {
   try {
-    const id = req.params["id"];
+    const id = req.params["id"] as string;
     if (!id) return res.status(400).json({ error: "Missing ID" });
 
     const complaint = await getComplaintById(id);
@@ -246,7 +246,7 @@ export async function publicRecentComplaintsController(
 
 export async function assignComplaintController(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { assignedToId } = req.body;
 
     // TODO: Verify user belongs to brand

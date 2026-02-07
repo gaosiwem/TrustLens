@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import request from "supertest";
 import app from "../app.js";
-import prisma from "../prismaClient.js";
+import { prisma } from "../lib/prisma.js";
 import jwt from "jsonwebtoken";
 import { ENV } from "../config/env.js";
 

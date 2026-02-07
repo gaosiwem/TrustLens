@@ -21,7 +21,7 @@ export async function getEnforcements(req: Request, res: Response) {
 
 export async function resolveEscalation(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { status } = req.body;
     if (!id || !status) {
       return res.status(400).json({ error: "ID and status are required" });

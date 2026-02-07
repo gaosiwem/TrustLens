@@ -8,6 +8,7 @@ const transitions: Record<ComplaintStatus, ComplaintStatus[]> = {
   RESPONDED: ["UNDER_REVIEW", "RESOLVED"],
   RESOLVED: [],
   REJECTED: [],
+  INFO_PROVIDED: ["UNDER_REVIEW"],
 };
 
 export function assertTransition(from: ComplaintStatus, to: ComplaintStatus) {

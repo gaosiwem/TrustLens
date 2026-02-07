@@ -132,7 +132,7 @@ export async function ingestSentiment(args: IngestArgs) {
 
   const topicCounts = new Map<string, number>();
   for (const e of dayEvents) {
-    for (const t of e.topics ?? []) {
+    for (const t of (e.topics as string[]) ?? []) {
       topicCounts.set(t, (topicCounts.get(t) ?? 0) + 1);
     }
   }
