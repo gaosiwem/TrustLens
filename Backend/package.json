@@ -42,7 +42,7 @@
     "speakeasy": "^2.0.0",
     "uuid": "^13.0.0",
     "winston": "^3.19.0",
-    "zod": "^4.3.5"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
