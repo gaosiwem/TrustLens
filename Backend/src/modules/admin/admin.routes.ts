@@ -100,7 +100,7 @@ router.patch(
   authenticateAdmin,
   async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { status } = req.body as { status: BrandClaimStatus };
 
       if (!id || !status) {

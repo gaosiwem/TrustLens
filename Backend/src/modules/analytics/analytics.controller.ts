@@ -4,7 +4,7 @@ import prisma from "../../lib/prisma.js";
 
 export async function trackBadgeClick(req: Request, res: Response) {
   try {
-    const { brandId } = req.params;
+    const brandId = req.params.brandId as string;
     const userId = (req as any).user?.userId || "GUEST";
 
     await logAction({

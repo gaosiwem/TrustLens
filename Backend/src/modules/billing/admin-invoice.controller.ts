@@ -115,7 +115,7 @@ export async function createAdHocInvoice(req: Request, res: Response) {
 
 export async function updateInvoiceStatus(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { status } = req.body; // PAID, VOID
 
     if (!["PAID", "VOID", "ISSUED"].includes(status)) {
@@ -141,7 +141,7 @@ export async function updateInvoiceStatus(req: Request, res: Response) {
 
 export async function getInvoicePreview(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const invoice = await prisma.invoice.findUnique({
       where: { id },
       include: {
@@ -154,7 +154,9 @@ export async function getInvoicePreview(req: Request, res: Response) {
       return res.status(404).json({ error: "Invoice not found" });
     }
 
-    const pdfBuffer = await InvoicePDFService.generateInvoicePDF(invoice);
+    const pdfBuffer = await InvoicePDFService.generateInvoicePDF(
+      invoice as any,
+    );
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -170,7 +172,7 @@ export async function getInvoicePreview(req: Request, res: Response) {
 
 export async function resendInvoice(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const invoice = await prisma.invoice.findUnique({
       where: { id },
       include: {
@@ -189,7 +191,9 @@ export async function resendInvoice(req: Request, res: Response) {
         .json({ error: "Brand manager has no email address" });
     }
 
-    const pdfBuffer = await InvoicePDFService.generateInvoicePDF(invoice);
+    const pdfBuffer = await InvoicePDFService.generateInvoicePDF(
+      invoice as any,
+    );
 
     const emailContent = EmailTemplates.getInvoiceEmail({
       invoiceNumber: invoice.invoiceNumber,
