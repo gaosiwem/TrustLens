@@ -11,7 +11,6 @@ const logger = winston.createLogger({
     winston.format.json()
   ),
   defaultMeta: { service: "trustlens-api" },
-  transports: [
     // Console transport for all environments
     new winston.transports.Console({
       format: winston.format.combine(
@@ -25,31 +24,28 @@ const logger = winston.createLogger({
         })
       ),
     }),
+  ],
+});
 
-    // File transport for errors
+// Only add file transports in development
+if (process.env.NODE_ENV !== "production") {
+  logger.add(
     new winston.transports.File({
       filename: "logs/error.log",
       level: "error",
       maxsize: 5242880, // 5MB
       maxFiles: 5,
-    }),
-
-    // File transport for all logs
+    })
+  );
+  logger.add(
     new winston.transports.File({
       filename: "logs/combined.log",
       maxsize: 5242880, // 5MB
       maxFiles: 5,
-    }),
-  ],
-});
-
-// If we're not in production, log to console with simpler format
-if (process.env.NODE_ENV !== "production") {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.simple(),
     })
   );
 }
+
+
 
 export default logger;
