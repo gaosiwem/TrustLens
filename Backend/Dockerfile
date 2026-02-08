@@ -1,4 +1,6 @@
 FROM node:20-alpine AS base
+# Install OpenSSL 3.0 explicitly to ensure Prisma compatibility
+RUN apk add --no-cache openssl
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -13,6 +15,7 @@ RUN npm ci
 
 # Generate Prisma Client
 RUN npx prisma generate
+
 
 # Rebuild the source code only when needed
 FROM base AS builder
