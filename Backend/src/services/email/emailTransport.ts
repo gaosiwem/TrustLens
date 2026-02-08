@@ -1,41 +1,71 @@
 import nodemailer from "nodemailer";
 import logger from "../../config/logger.js";
+import dns from "dns/promises";
 
-// Create Nodemailer transporter
-const smtpHost = process.env.SMTP_HOST || "localhost";
-const smtpPort = parseInt(process.env.SMTP_PORT || "1025");
-let smtpSecure = process.env.SMTP_SECURE === "true";
+let transporter: nodemailer.Transporter | null = null;
 
-// Auto-fix common configuration errors
-if (smtpPort === 587 && smtpSecure) {
-  logger.warn(
-    "SMTP Config Warning: Port 587 typically requires secure: false (STARTTLS). Overriding SMTP_SECURE to false.",
+async function getTransporter() {
+  if (transporter) return transporter;
+
+  const smtpHost = process.env.SMTP_HOST || "localhost";
+  const smtpPort = parseInt(process.env.SMTP_PORT || "1025");
+  let smtpSecure = process.env.SMTP_SECURE === "true";
+
+  // Auto-fix common configuration errors
+  if (smtpPort === 587 && smtpSecure) {
+    logger.warn(
+      "SMTP Config Warning: Port 587 typically requires secure: false (STARTTLS). Overriding SMTP_SECURE to false.",
+    );
+    smtpSecure = false;
+  }
+
+  if (smtpPort === 465 && !smtpSecure) {
+    logger.warn(
+      "SMTP Config Warning: Port 465 typically requires secure: true (SMTPS). Overriding SMTP_SECURE to true.",
+    );
+    smtpSecure = true;
+  }
+
+  let resolvedHost = smtpHost;
+  try {
+    if (smtpHost !== "localhost" && smtpHost !== "127.0.0.1") {
+      logger.info(`Resolving DNS for ${smtpHost}...`);
+      const addresses = await dns.resolve4(smtpHost);
+      if (addresses && addresses.length > 0) {
+        resolvedHost = addresses[0];
+        logger.info(`Resolved ${smtpHost} to IPv4: ${resolvedHost}`);
+      } else {
+        logger.warn(`No IPv4 addresses found for ${smtpHost}, using hostname.`);
+      }
+    }
+  } catch (error) {
+    logger.error(`DNS Resolution failed for ${smtpHost}:`, error);
+    // Fallback to hostname
+  }
+
+  logger.info(
+    `Initializing Email Transport: ${resolvedHost}:${smtpPort} (Secure: ${smtpSecure})`,
   );
-  smtpSecure = false;
+
+  transporter = nodemailer.createTransport({
+    host: resolvedHost,
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    // Useful options for resilience
+    connectionTimeout: 10000, // 10s timeout
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+    tls: {
+      rejectUnauthorized: false, // Sometimes needed for self-signed or proxy certs, harmless for Gmail usually
+    },
+  } as any);
+
+  return transporter;
 }
-
-if (smtpPort === 465 && !smtpSecure) {
-  logger.warn(
-    "SMTP Config Warning: Port 465 typically requires secure: true (SMTPS). Overriding SMTP_SECURE to true.",
-  );
-  smtpSecure = true;
-}
-
-logger.info(
-  `Initializing Email Transport: ${smtpHost}:${smtpPort} (Secure: ${smtpSecure})`,
-);
-
-const transporter = nodemailer.createTransport({
-  host: smtpHost,
-  port: smtpPort,
-  secure: smtpSecure,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  // Force IPv4 to avoid timeouts in some container environments
-  family: 4,
-} as any);
 
 export const EmailTransport = {
   send: async (params: {
@@ -51,7 +81,8 @@ export const EmailTransport = {
     }[];
   }) => {
     try {
-      const info = await transporter.sendMail({
+      const emailTransporter = await getTransporter();
+      const info = await emailTransporter.sendMail({
         from:
           params.from ||
           process.env.EMAIL_FROM ||
