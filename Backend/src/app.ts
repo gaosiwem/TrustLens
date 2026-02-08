@@ -31,6 +31,9 @@ import { requestLogger } from "./middleware/logging.middleware.js";
 
 const app = express();
 
+// Trust Proxy (Required for Railway/Load Balancers to forward IPs correctly)
+app.set("trust proxy", 1);
+
 // Global Request Logging
 app.use(requestLogger);
 
