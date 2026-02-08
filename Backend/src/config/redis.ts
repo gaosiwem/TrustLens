@@ -22,17 +22,18 @@ if (!redisUrl) {
 // Strategy: use a SafeRedis wrapper or just conditional logic.
 // Simplest fix based on plan: check env, if missing, don't instantiate smoothly or instantiate with lazyConnect and never connect.
 
-const redis = new Redis(redisUrl || "redis://localhost:6379", {
+const redis = new Redis(redisUrl, {
   maxRetriesPerRequest: 3,
   enableReadyCheck: true,
-  lazyConnect: true, // We will manually connect
+  lazyConnect: true,
+  // Disable auto-reconnect if no URL provided
   retryStrategy: (times: number) => {
-    if (!redisUrl) return null; // Don't retry if no URL
+    if (!redisUrl) return null;
     if (times > 3) {
       logger.warn(
         "Redis connection failed after 3 retries, operating in degraded mode",
       );
-      return null; // Stop retrying
+      return null;
     }
     return Math.min(times * 200, 2000);
   },
