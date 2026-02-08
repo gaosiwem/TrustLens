@@ -42,6 +42,9 @@ COPY --from=builder --chown=expressjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=expressjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=expressjs:nodejs /app/prisma ./prisma
 
+# Create uploads directory and set permissions
+RUN mkdir -p uploads && chown expressjs:nodejs uploads
+
 USER expressjs
 
 EXPOSE 3000
