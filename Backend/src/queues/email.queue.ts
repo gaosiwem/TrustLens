@@ -5,21 +5,22 @@ import logger from "../config/logger.js";
 let emailQueue: Queue | null = null;
 let emailQueueConnection: Redis | null = null;
 
-function createConnection(): Redis {
-  const connection = new Redis(
-    process.env.REDIS_URL || "redis://localhost:6379",
-    {
-      maxRetriesPerRequest: null,
-      lazyConnect: true,
-      retryStrategy: (times: number) => {
-        if (times > 3) {
-          logger.warn("Email queue: Redis connection failed after 3 retries");
-          return null;
-        }
-        return Math.min(times * 200, 2000);
-      },
+function createConnection(): Redis | null {
+  if (!process.env.REDIS_URL) {
+    logger.warn("Email queue: REDIS_URL not set, skipping connection");
+    return null;
+  }
+  const connection = new Redis(process.env.REDIS_URL, {
+    maxRetriesPerRequest: null,
+    lazyConnect: true,
+    retryStrategy: (times: number) => {
+      if (times > 3) {
+        logger.warn("Email queue: Redis connection failed after 3 retries");
+        return null;
+      }
+      return Math.min(times * 200, 2000);
     },
-  );
+  });
 
   connection.on("error", (err) => {
     logger.error("Email queue Redis error:", err.message);
@@ -35,6 +36,9 @@ export function getEmailQueue(): Queue | null {
   if (!emailQueue) {
     try {
       emailQueueConnection = createConnection();
+      if (!emailQueueConnection) {
+        return null;
+      }
       emailQueue = new Queue("emailQueue", {
         connection: emailQueueConnection as any,
       });

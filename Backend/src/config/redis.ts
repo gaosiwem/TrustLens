@@ -1,14 +1,33 @@
 import { Redis } from "ioredis";
 import logger from "./logger.js";
 
+import { ENV } from "./env.js";
+
 // Track connection state
 let isConnected = false;
 
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+// If REDIS_URL is not provided, we won't even try to connect
+const redisUrl = ENV.REDIS_URL;
+
+if (!redisUrl) {
+  logger.warn(
+    "REDIS_URL is not defined in environment variables. Redis-dependent features will be disabled.",
+  );
+}
+
+// Create Redis instance but only connect if URL is present (or default to localhost only if explicitly desired, but here we want to avoid crash)
+// To avoid modifying all callsites, we still export a redis instance, but we need to handle the case where we don't want it to try connecting to localhost automatically if we are in prod.
+// However, ioredis constructor *will* connect immediately or lazyConnect.
+// If we pass 'null' or invalid URL it might throw.
+// Strategy: use a SafeRedis wrapper or just conditional logic.
+// Simplest fix based on plan: check env, if missing, don't instantiate smoothly or instantiate with lazyConnect and never connect.
+
+const redis = new Redis(redisUrl || "redis://localhost:6379", {
   maxRetriesPerRequest: 3,
   enableReadyCheck: true,
-  lazyConnect: true,
+  lazyConnect: true, // We will manually connect
   retryStrategy: (times: number) => {
+    if (!redisUrl) return null; // Don't retry if no URL
     if (times > 3) {
       logger.warn(
         "Redis connection failed after 3 retries, operating in degraded mode",
@@ -89,6 +108,10 @@ export async function deleteCachedData(key: string): Promise<void> {
 }
 
 export async function connectRedis(): Promise<void> {
+  if (!ENV.REDIS_URL) {
+    logger.warn("Skipping Redis connection: REDIS_URL not set");
+    return;
+  }
   try {
     await redis.connect();
     logger.info("Redis connection established");

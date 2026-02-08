@@ -8,23 +8,22 @@ import logger from "../config/logger.js";
 let emailWorker: Worker | null = null;
 
 function createConnection(): Redis | null {
+  if (!process.env.REDIS_URL) {
+    logger.warn("Email worker: REDIS_URL not set, skipping connection");
+    return null;
+  }
   try {
-    const connection = new Redis(
-      process.env.REDIS_URL || "redis://localhost:6379",
-      {
-        maxRetriesPerRequest: null,
-        lazyConnect: true,
-        retryStrategy: (times: number) => {
-          if (times > 3) {
-            logger.warn(
-              "Email worker: Redis connection failed after 3 retries",
-            );
-            return null;
-          }
-          return Math.min(times * 200, 2000);
-        },
+    const connection = new Redis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: null,
+      lazyConnect: true,
+      retryStrategy: (times: number) => {
+        if (times > 3) {
+          logger.warn("Email worker: Redis connection failed after 3 retries");
+          return null;
+        }
+        return Math.min(times * 200, 2000);
       },
-    );
+    });
 
     connection.on("error", (err) => {
       logger.error("Email worker Redis error:", err.message);

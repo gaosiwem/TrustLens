@@ -9,4 +9,5 @@ export const ENV = {
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10 MB
   UPLOAD_DIR: process.env.UPLOAD_DIR || "uploads",
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
+  REDIS_URL: process.env.REDIS_URL,
 };
