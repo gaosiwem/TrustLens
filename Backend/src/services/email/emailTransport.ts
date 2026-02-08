@@ -34,9 +34,8 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
   // Force IPv4 to avoid timeouts in some container environments
-  // @ts-ignore
   family: 4,
-});
+} as any);
 
 export const EmailTransport = {
   send: async (params: {
