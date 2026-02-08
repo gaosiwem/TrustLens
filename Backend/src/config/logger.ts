@@ -8,9 +8,10 @@ const logger = winston.createLogger({
     }),
     winston.format.errors({ stack: true }),
     winston.format.splat(),
-    winston.format.json()
+    winston.format.json(),
   ),
   defaultMeta: { service: "trustlens-api" },
+  transports: [
     // Console transport for all environments
     new winston.transports.Console({
       format: winston.format.combine(
@@ -21,7 +22,7 @@ const logger = winston.createLogger({
             msg += ` ${JSON.stringify(metadata)}`;
           }
           return msg;
-        })
+        }),
       ),
     }),
   ],
@@ -35,17 +36,15 @@ if (process.env.NODE_ENV !== "production") {
       level: "error",
       maxsize: 5242880, // 5MB
       maxFiles: 5,
-    })
+    }),
   );
   logger.add(
     new winston.transports.File({
       filename: "logs/combined.log",
       maxsize: 5242880, // 5MB
       maxFiles: 5,
-    })
+    }),
   );
 }
-
-
 
 export default logger;
