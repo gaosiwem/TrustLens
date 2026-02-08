@@ -29,7 +29,7 @@ const logger = winston.createLogger({
 });
 
 // Only add file transports in development
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV === "development") {
   logger.add(
     new winston.transports.File({
       filename: "logs/error.log",

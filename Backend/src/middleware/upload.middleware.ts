@@ -4,10 +4,23 @@ import { ENV } from "../config/env.js";
 import fs from "fs";
 import logger from "../config/logger.js";
 
+import os from "os";
+
 // Ensure upload directory exists
-const uploadDir = ENV.UPLOAD_DIR || "uploads";
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+let uploadDir = ENV.UPLOAD_DIR || "uploads";
+
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (error) {
+  logger.warn(
+    `Failed to create upload directory at ${uploadDir}, falling back to temp dir: ${error}`,
+  );
+  uploadDir = path.join(os.tmpdir(), "uploads");
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
 }
 
 const storage = multer.diskStorage({
