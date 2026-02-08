@@ -2,10 +2,24 @@ import nodemailer from "nodemailer";
 import logger from "../../config/logger.js";
 
 // Create Nodemailer transporter
-// Create Nodemailer transporter
 const smtpHost = process.env.SMTP_HOST || "localhost";
 const smtpPort = parseInt(process.env.SMTP_PORT || "1025");
-const smtpSecure = process.env.SMTP_SECURE === "true";
+let smtpSecure = process.env.SMTP_SECURE === "true";
+
+// Auto-fix common configuration errors
+if (smtpPort === 587 && smtpSecure) {
+  logger.warn(
+    "SMTP Config Warning: Port 587 typically requires secure: false (STARTTLS). Overriding SMTP_SECURE to false.",
+  );
+  smtpSecure = false;
+}
+
+if (smtpPort === 465 && !smtpSecure) {
+  logger.warn(
+    "SMTP Config Warning: Port 465 typically requires secure: true (SMTPS). Overriding SMTP_SECURE to true.",
+  );
+  smtpSecure = true;
+}
 
 logger.info(
   `Initializing Email Transport: ${smtpHost}:${smtpPort} (Secure: ${smtpSecure})`,
