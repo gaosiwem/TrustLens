@@ -22,22 +22,42 @@ if (!redisUrl) {
 // Strategy: use a SafeRedis wrapper or just conditional logic.
 // Simplest fix based on plan: check env, if missing, don't instantiate smoothly or instantiate with lazyConnect and never connect.
 
-const redis = new Redis(redisUrl, {
-  maxRetriesPerRequest: 3,
-  enableReadyCheck: true,
-  lazyConnect: true,
-  // Disable auto-reconnect if no URL provided
-  retryStrategy: (times: number) => {
-    if (!redisUrl) return null;
-    if (times > 3) {
-      logger.warn(
-        "Redis connection failed after 3 retries, operating in degraded mode",
-      );
-      return null;
-    }
-    return Math.min(times * 200, 2000);
-  },
-});
+let redis: Redis;
+
+if (redisUrl) {
+  redis = new Redis(redisUrl, {
+    maxRetriesPerRequest: 3,
+    enableReadyCheck: true,
+    lazyConnect: true,
+    retryStrategy: (times: number) => {
+      if (times > 3) {
+        logger.warn(
+          "Redis connection failed after 3 retries, operating in degraded mode",
+        );
+        return null; // Stop retrying
+      }
+      return Math.min(times * 200, 2000);
+    },
+  });
+} else {
+  // Mock Redis implementation to prevent any connection attempts
+  redis = new Proxy({} as Redis, {
+    get(target, prop) {
+      if (prop === "status") return "ready";
+      if (prop === "on") return () => {};
+      if (prop === "connect") return () => Promise.resolve();
+      if (prop === "disconnect" || prop === "quit")
+        return () => Promise.resolve("OK");
+      if (prop === "duplicate") return () => redis;
+
+      // Return a function that returns null (for getters) or "OK" (for setters)
+      return async () => {
+        logger.debug(`Mock Redis call to ${String(prop)} ignored`);
+        return null;
+      };
+    },
+  });
+}
 
 redis.on("connect", () => {
   isConnected = true;
