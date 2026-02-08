@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs-20_x", "npm-9_x", "openssl"]
+nixPkgs = ["nodejs-20_x", "npm-9_x", "openssl", "openssl_1_1"]
 
 [phases.build]
 cmds = ["npm install", "npm run build", "npx prisma generate"]
